@@ -40,6 +40,10 @@ KS0258 proto holes are the intended place to solder the 10 k / 4.7 k / 2.2 k lad
 
 A0–A3 and A6–A15 stay free on Mega. A0 is the default limit-ladder input for turnout 0.
 
+When `RR_USE_KS0258` is 0 on Mega, onboard servo PWM is **D44** (then D45, D46). Do not use D9/D10: the Waveshare 4" TFT uses D9 (backlight) and D10 (LCD_CS), and D3–D13 in full.
+
+The Waveshare 4" TFT (ILI9486, XPT2046) also uses D3, D4, D5, D6, D7, D8. That overlaps Snowball Creek D3/D5/D6/D7/D8. **Do not stack Snowball Creek and the 4" TFT** on any Arduino-footprint board.
+
 Power: leave JP2/JP3 **off** unless you intend to power the Arduino from the LCC bus. Never power stall-capable servos from the Mega 5 V pin. Feed KS0258 **V+** from a separate 5 V supply (KS0258 V+ max 6 V). Tie all grounds together: Mega, KS0258 logic, servo V+, and switch harness.
 
 ## Servo (Futaba / JR 3-pin)

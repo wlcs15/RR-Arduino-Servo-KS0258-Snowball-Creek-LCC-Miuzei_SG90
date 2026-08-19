@@ -7,7 +7,7 @@ The firmware is split so the same turnout logic can run on more than one Arduino
 | `lib/rr_servo` | Portable decode + motion state machine (no Arduino types except in `BoardPins.h`) |
 | `sketches/TurnoutBringup` | Mega/Uno serial bring-up: KS0258 + analog ladder |
 | `sketches/LccTurnoutNode` | Same motion path plus Snowball Creek CAN pins; LCC events not linked (GPL `libLCC` avoided) |
-| `tests/` | Host unit tests for the ladder and motion machine |
+| `tests/` | Host tests (today: a small C++ driver; policy is Unity on host and on-target) |
 
 ## Libraries
 
@@ -63,11 +63,15 @@ OwlThree range **05.01.01.01.A5.*** — first servo node **05.01.01.01.A5.02**.
 | 0x12 | produce | Closed limit |
 | 0x13 | produce | Both limits (fault) |
 
-Hook those IDs in the `libLCC` event context using the shield’s Simple Node example as the CAN template.
+LCC event I/O on Mega waits for a BSD-licensed OpenLCB stack. D1 R32 / ARM will use OpenMRNIDF / OpenMRNLite.
 
-## Host tests
+## Host tests (interim)
+
+Until Unity is added as a submodule, the stand-in driver is C++11:
 
 ```bash
-g++ -std=c++17 -I lib/rr_servo/src tests/test_limit_ladder.cpp tests/test_turnout.cpp -o /tmp/rr_servo_tests
+g++ -std=c++11 -I lib/rr_servo/src tests/test_rr_servo.cpp -o /tmp/rr_servo_tests
 /tmp/rr_servo_tests
 ```
+
+Policy (Google C++ / CERT, lizard 10, DEBUG CLI, Unity, OCLint Linux-only) is in the root README. Do not run lizard fail, OCLint, or style-fail on `third_party/` or other submodules.

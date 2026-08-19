@@ -32,4 +32,6 @@ Rule: a `-tft` branch **removes the KS0258 shield**. If that node still drives s
 
 Shared motion/ladder code stays on `main` (`lib/rr_servo`) and is merged forward. TFT UI, ILI9486 drivers, and pin maps stay on the `-tft` branch.
 
+The Waveshare 4" shield uses D3–D13 (including D7/D8/D9/D10). That overlaps Snowball Creek. A `-tft` node is not an LCC-shield stack. Servos on those branches use a PCA9685 module on I2C, not header PWM.
+
 OwlThree OpenLCB range: **05.01.01.01.A5.00–FF**. Existing D1 R32 display node: `.A5.01`. First servo node: **`.A5.02`**.
