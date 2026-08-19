@@ -1,0 +1,7 @@
+Checks: 'clang-diagnostic-*,clang-analyzer-*,google-*,cert-*'
+WarningsAsErrors: 'clang-diagnostic-error,clang-analyzer-*'
+HeaderFilterRegex: 'lib/rr_servo|tests/|host/'
+FormatStyle: none
+CheckOptions:
+  - key: google-readability-braces-around-statements.ShortStatementExcept
+    value: 'false'

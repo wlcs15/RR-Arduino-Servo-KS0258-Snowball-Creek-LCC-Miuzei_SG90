@@ -1,86 +1,73 @@
 #include "LimitLadder.h"
 #include "TurnoutChannel.h"
+#include "unity.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
-static int failures = 0;
-
-static void expect_eq_int(const char *name, int got, int want) {
-  if (got != want) {
-    fprintf(stderr, "FAIL %s: got %d want %d\n", name, got, want);
-    ++failures;
-  }
+static void test_ladder_bands(void) {
+  const LimitLadderConfig cfg = limit_ladder_default_10bit();
+  TEST_ASSERT_EQUAL(LIMIT_NEITHER, limit_ladder_decode(1023, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_NEITHER, limit_ladder_decode(901, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_THROWN, limit_ladder_decode(330, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_THROWN, limit_ladder_decode(251, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_CLOSED, limit_ladder_decode(185, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_CLOSED, limit_ladder_decode(151, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_BOTH, limit_ladder_decode(125, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_BOTH, limit_ladder_decode(0, cfg));
 }
 
-static void test_ladder_bands() {
-  LimitLadderConfig cfg = limit_ladder_default_10bit();
-  expect_eq_int("neither", limit_ladder_decode(1023, cfg), LIMIT_NEITHER);
-  expect_eq_int("neither-edge", limit_ladder_decode(901, cfg), LIMIT_NEITHER);
-  expect_eq_int("thrown", limit_ladder_decode(330, cfg), LIMIT_THROWN);
-  expect_eq_int("thrown-edge", limit_ladder_decode(251, cfg), LIMIT_THROWN);
-  expect_eq_int("closed", limit_ladder_decode(185, cfg), LIMIT_CLOSED);
-  expect_eq_int("closed-edge", limit_ladder_decode(151, cfg), LIMIT_CLOSED);
-  expect_eq_int("both", limit_ladder_decode(125, cfg), LIMIT_BOTH);
-  expect_eq_int("both-zero", limit_ladder_decode(0, cfg), LIMIT_BOTH);
+static void test_ladder_scaled_12bit(void) {
+  const LimitLadderConfig cfg = limit_ladder_scaled(4095);
+  TEST_ASSERT_EQUAL(LIMIT_NEITHER, limit_ladder_decode(4095, cfg));
+  TEST_ASSERT_EQUAL(LIMIT_THROWN, limit_ladder_decode(1320, cfg));
 }
 
-static void test_ladder_scaled_12bit() {
-  LimitLadderConfig cfg = limit_ladder_scaled(4095);
-  expect_eq_int("12bit-neither", limit_ladder_decode(4095, cfg), LIMIT_NEITHER);
-  // 330/1023*4095 ≈ 1320
-  expect_eq_int("12bit-thrown", limit_ladder_decode(1320, cfg), LIMIT_THROWN);
+static void test_filter_average(void) {
+  LimitLadderFilter filter(4);
+  TEST_ASSERT_EQUAL(100, filter.push(100));
+  TEST_ASSERT_EQUAL(150, filter.push(200));
+  TEST_ASSERT_EQUAL(200, filter.push(300));
+  TEST_ASSERT_EQUAL(250, filter.push(400));
+  TEST_ASSERT_EQUAL(350, filter.push(500));
 }
 
-static void test_filter_average() {
-  LimitLadderFilter f(4);
-  expect_eq_int("n1", f.push(100), 100);
-  expect_eq_int("n2", f.push(200), 150);
-  expect_eq_int("n3", f.push(300), 200);
-  expect_eq_int("n4", f.push(400), 250);
-  expect_eq_int("n5", f.push(500), 350);
+static void test_turnout_arrives_on_limit(void) {
+  TurnoutChannel ch;
+  ch.command(TURNOUT_CMD_THROWN, 1000);
+  TEST_ASSERT_EQUAL(TURNOUT_MOVING_THROWN, ch.motion());
+  TEST_ASSERT_EQUAL(1, ch.drive_enabled() ? 1 : 0);
+  TEST_ASSERT_EQUAL(2000, ch.pulse_us());
+  ch.update(1100, LIMIT_NEITHER);
+  TEST_ASSERT_EQUAL(TURNOUT_MOVING_THROWN, ch.motion());
+  ch.update(1200, LIMIT_THROWN);
+  TEST_ASSERT_EQUAL(TURNOUT_IDLE, ch.motion());
+  TEST_ASSERT_EQUAL(1, ch.arrived() ? 1 : 0);
+  ch.update(1500, LIMIT_THROWN);
+  TEST_ASSERT_EQUAL(0, ch.drive_enabled() ? 1 : 0);
 }
 
-static void test_turnout_arrives_on_limit() {
-  TurnoutChannel t;
-  t.command(TURNOUT_CMD_THROWN, 1000);
-  expect_eq_int("moving", t.motion(), TURNOUT_MOVING_THROWN);
-  expect_eq_int("drive-on", t.drive_enabled(), 1);
-  expect_eq_int("pulse", t.pulse_us(), 2000);
-  t.update(1100, LIMIT_NEITHER);
-  expect_eq_int("still-moving", t.motion(), TURNOUT_MOVING_THROWN);
-  t.update(1200, LIMIT_THROWN);
-  expect_eq_int("idle-arrived", t.motion(), TURNOUT_IDLE);
-  expect_eq_int("arrived", t.arrived(), 1);
-  t.update(1500, LIMIT_THROWN);
-  expect_eq_int("released", t.drive_enabled(), 0);
+static void test_turnout_timeout_and_both(void) {
+  TurnoutChannel ch;
+  ch.command(TURNOUT_CMD_CLOSED, 0);
+  ch.update(4000, LIMIT_NEITHER);
+  TEST_ASSERT_EQUAL(TURNOUT_FAULT, ch.motion());
+  TEST_ASSERT_EQUAL(TURNOUT_FAULT_TIMEOUT, ch.fault());
+  TEST_ASSERT_EQUAL(0, ch.drive_enabled() ? 1 : 0);
+
+  TurnoutChannel ch2;
+  ch2.command(TURNOUT_CMD_THROWN, 0);
+  ch2.update(10, LIMIT_BOTH);
+  TEST_ASSERT_EQUAL(TURNOUT_FAULT_BOTH_LIMITS, ch2.fault());
+  TEST_ASSERT_EQUAL(0, ch2.drive_enabled() ? 1 : 0);
 }
 
-static void test_turnout_timeout_and_both() {
-  TurnoutChannel t;
-  t.command(TURNOUT_CMD_CLOSED, 0);
-  t.update(4000, LIMIT_NEITHER);
-  expect_eq_int("timeout-motion", t.motion(), TURNOUT_FAULT);
-  expect_eq_int("timeout-fault", t.fault(), TURNOUT_FAULT_TIMEOUT);
-  expect_eq_int("timeout-drive", t.drive_enabled(), 0);
+void setUp(void) {}
+void tearDown(void) {}
 
-  TurnoutChannel t2;
-  t2.command(TURNOUT_CMD_THROWN, 0);
-  t2.update(10, LIMIT_BOTH);
-  expect_eq_int("both-fault", t2.fault(), TURNOUT_FAULT_BOTH_LIMITS);
-  expect_eq_int("both-drive", t2.drive_enabled(), 0);
-}
-
-int main() {
-  test_ladder_bands();
-  test_ladder_scaled_12bit();
-  test_filter_average();
-  test_turnout_arrives_on_limit();
-  test_turnout_timeout_and_both();
-  if (failures) {
-    fprintf(stderr, "%d failure(s)\n", failures);
-    return 1;
-  }
-  puts("ok");
-  return 0;
+int main(void) {
+  UNITY_BEGIN();
+  RUN_TEST(test_ladder_bands);
+  RUN_TEST(test_ladder_scaled_12bit);
+  RUN_TEST(test_filter_average);
+  RUN_TEST(test_turnout_arrives_on_limit);
+  RUN_TEST(test_turnout_timeout_and_both);
+  return UNITY_END();
 }

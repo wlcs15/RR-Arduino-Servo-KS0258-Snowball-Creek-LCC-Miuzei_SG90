@@ -34,6 +34,14 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
 - Adafruit PCA9685 + BusIO submodules
 - Other CPUs and TFT: not started (branch names reserved)
 
+## Electrical stacks (keep separate)
+
+**Mega 2560 trunk (5 V):** Snowball Creek + KS0258 + 5 V analog ladder + SG90 on KS0258 **V+**. Safe.
+
+**Wemos D1 R32 (3.3 V GPIO):** no Snowball Creek, no KS0258 shield. Onboard LEDC PWM (first servo **D2 / GPIO26**). Analog **A1** (not A0 — GPIO2 is a boot strap). Ladder pull-up to **3.3 V**. SG90 **power still 5 V**. CAN later via **SN65HVD230 module** on TWAI GPIOs — not D14/D15 (those are input-only ADC on this board). Ignore CANADUINO Nano adapters.
+
+Do not mix the 5 V Mega shield stack onto the ESP32.
+
 ## Mega bring-up
 
 ```bash
@@ -41,7 +49,9 @@ git submodule update --init --recursive
 ln -s "$(pwd)/lib/rr_servo" "$HOME/Arduino/libraries/rr_servo"
 # Arduino IDE: sketches/TurnoutBringup
 # FQBN arduino:avr:mega:cpu=atmega2560
-./tests/run_host_tests.sh
+./scripts/run_tests.sh
+./scripts/run_cppcheck.sh
+# optional: ./scripts/run_lizard.sh  ./scripts/run_clang_tidy.sh
 ```
 
 Serial 115200: `t` throw, `c` close, `s` status.
@@ -124,7 +134,7 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 | **Cyclomatic complexity** | **lizard**, report **per file / per module**. **Fail if any function in our code exceeds 10.** No fail (and no requirement) on `third_party/`, git submodules, or other code we did not author. |
 | **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. This target **fails on error-severity only**; warnings are reports. |
 
-Unity submodule and these targets are **policy**; scripts are not in the tree yet.
+Host CMake (C11/C++11): `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). ESP32 firmware is not in this drop.
 
 ## Design origin
 

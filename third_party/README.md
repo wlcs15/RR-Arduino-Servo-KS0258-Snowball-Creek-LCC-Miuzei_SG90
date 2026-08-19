@@ -8,6 +8,7 @@ git submodule update --init --recursive
 | --- | --- | --- |
 | `Adafruit_BusIO` | https://github.com/adafruit/Adafruit_BusIO | BSD |
 | `Adafruit-PWM-Servo-Driver-Library` | https://github.com/adafruit/Adafruit-PWM-Servo-Driver-Library | BSD |
+| `Unity` | https://github.com/ThrowTheSwitch/Unity | MIT |
 
 Still to add when the CPU branch needs them:
 
