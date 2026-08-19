@@ -79,3 +79,7 @@ Testing/
 
 # local secrets / hardware ids (same policy as the D1 R32 OpenMRN node)
 local/
+
+# Local session resume notes (not for GitHub)
+How-To-Resume.txt
+RESUME.txt

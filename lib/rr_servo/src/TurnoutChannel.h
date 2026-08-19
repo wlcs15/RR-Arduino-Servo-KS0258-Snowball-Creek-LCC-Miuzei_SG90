@@ -20,6 +20,13 @@ enum TurnoutFault {
   TURNOUT_FAULT_WRONG_LIMIT
 };
 
+// Miuzei SG90: 0–180 deg (not 360). 1000 us = 0, 1500 us = 90, 2000 us = 180.
+enum {
+  RR_SG90_US_0 = 1000,
+  RR_SG90_US_90 = 1500,
+  RR_SG90_US_180 = 2000
+};
+
 struct TurnoutConfig {
   uint16_t thrownPulseUs;
   uint16_t closedPulseUs;
@@ -30,8 +37,8 @@ struct TurnoutConfig {
 
 inline TurnoutConfig turnout_default_sg90() {
   TurnoutConfig c;
-  c.thrownPulseUs = 2000;
-  c.closedPulseUs = 1000;
+  c.thrownPulseUs = (uint16_t)RR_SG90_US_180;
+  c.closedPulseUs = (uint16_t)RR_SG90_US_0;
   c.moveTimeoutMs = 4000;
   c.holdAfterLimitMs = 200;
   c.releasePwmWhenIdle = true;
@@ -50,7 +57,7 @@ class TurnoutChannel {
         arrivedMs_(0),
         arrived_(false),
         drive_(false),
-        pulseUs_(1500) {}
+        pulseUs_((uint16_t)RR_SG90_US_90) {}
 
   void set_config(const TurnoutConfig &cfg) { cfg_ = cfg; }
   const TurnoutConfig &config() const { return cfg_; }

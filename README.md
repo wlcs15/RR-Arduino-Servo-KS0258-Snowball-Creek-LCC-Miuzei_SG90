@@ -129,7 +129,7 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 
 | Target | Meaning |
 | --- | --- |
-| **DEBUG** | Firmware and a **host DEBUG CLI** (fake ADC, `t`/`c` commands, print limit/motion). `-DDEBUG`, extra serial/printf, no optimization. Separate from Unity. |
+| **DEBUG** | Firmware and a **host DEBUG CLI** (fake ADC, `t`/`c` commands, print limit/motion). `-DDEBUG`, extra serial/printf, no optimization. Separate from Unity. First Mega bring-up holds every KS0258 channel at **90 deg (1500 us)** on a 0–180 SG90 map (1000/1500/2000 us). **Do not flash that onto a servo whose horn is already at a mechanical stop** (see below). |
 | **Unit Test** | **Unity** (ThrowTheSwitch), git submodule. Same tests on **host** and **on-target** (Mega first). |
 | **Cyclomatic complexity** | **lizard**, report **per file / per module**. **Fail if any function in our code exceeds 10.** No fail (and no requirement) on `third_party/`, git submodules, or other code we did not author. |
 | **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. This target **fails on error-severity only**; warnings are reports. |
