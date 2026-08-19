@@ -1,0 +1,6 @@
+[submodule "third_party/Adafruit_BusIO"]
+	path = third_party/Adafruit_BusIO
+	url = https://github.com/adafruit/Adafruit_BusIO.git
+[submodule "third_party/Adafruit-PWM-Servo-Driver-Library"]
+	path = third_party/Adafruit-PWM-Servo-Driver-Library
+	url = https://github.com/adafruit/Adafruit-PWM-Servo-Driver-Library.git

@@ -67,3 +67,15 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Arduino / PlatformIO
+.pio/
+.vscode/
+*.hex
+*.elf
+*.bin
+*.map
+.clangd/
+
+# local secrets / hardware ids (same policy as the D1 R32 OpenMRN node)
+local/
