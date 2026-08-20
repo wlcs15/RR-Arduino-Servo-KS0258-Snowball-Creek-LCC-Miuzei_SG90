@@ -90,3 +90,5 @@ local/
 # Local session resume notes (not for GitHub)
 How-To-Resume.txt
 RESUME.txt
+
+# Live JMRI profile is ~/.jmri (or %USERPROFILE%\.jmri). Canonical panels are docs/jmri/*.xml.

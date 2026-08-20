@@ -30,11 +30,15 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
 
 - Portable ladder + motion: `lib/rr_servo` (host Unity 8/8, llvm-cov **96.83%** lines)
 - Mega serial bring-up: `sketches/TurnoutBringup` (DEBUG-off 45–135–90 cycle)
-- Mega **KS0258 ch0** proven with JMRI (**v1.1**): `sketches/LccTurnoutNode`
+- Mega **KS0258 ch0 + ch1** proven with JMRI (**v1.02**): `sketches/LccTurnoutNode`
   - Snowball Creek **Rev 4 MCP2518** (ACAN2517), not MCP2515
-  - Node **05.01.01.01.A5.02** (OwlThree; `.A5.01` is the D1 R32 display)
-  - Power-up: one 45→135→45→90 sweep, then hold 90° until an LCC command
-  - JMRI turnout `Left servo KS0258`: events `…A5.02.00.00` throw / `…A5.02.00.01` close (1000/2000 µs until pulses are trimmed)
+  - Node **05.01.01.01.A5.02** (OwlThree; `.A5.01` is the D1 R32 display). Next free **`.A5.03`**
+  - Power-up: hold 90° 1 s, one 45→135→45→90 sweep, then hold 90° until LCC
+  - JMRI panel: [docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml](docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml)
+    - Left (TO3 / ch0): `…A5.02.00.00` throw / `…A5.02.00.01` close
+    - Right (TO4 / ch1): `…A5.02.01.00` throw / `…A5.02.01.01` close
+  - Throw/close 1000/2000 µs until pulses are trimmed; command holds (does not snap to 90°)
+  - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
 - Other CPUs and TFT: not started (branch names reserved)

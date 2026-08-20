@@ -13,13 +13,18 @@
 // Application sources stay BSD-2-Clause. Linking LibLCC (GPL-2.0)
 // makes the firmware image GPL-2.0. Do not copy LibLCC into lib/.
 //
-// Events for 05.01.01.01.A5.02:
-//   consume  ...:00 throw  ...:01 close
-//   produce  ...:10 neither  ...:11 thrown  ...:12 closed  ...:13 both
-// Do not send t/c or throw/close events until the ladder is wired.
+// Events on node 05.01.01.01.A5.02 (channel in byte 6):
+//   ch0 throw/close  ...02.00.00 / ...02.00.01
+//   ch1 throw/close  ...02.01.00 / ...02.01.01
+//   ch0 limits       ...02.00.10 .. .13
+// Do not send throw/close until the ladder is wired (pulses still 0/180).
 
 #ifdef OPTIMIZE_MEMORY
 #pragma GCC optimize ("Os")
+#endif
+
+#ifndef LIBLCC_EVENT_LIST_STATIC_SIZE
+#define LIBLCC_EVENT_LIST_STATIC_SIZE 16
 #endif
 
 #include <SPI.h>
@@ -49,7 +54,7 @@
 static Adafruit_PWMServoDriver pwm(RR_PCA9685_ADDR);
 #else
 #include <Servo.h>
-static Servo fallbackServo;
+static Servo fallbackServo[2];
 #endif
 
 #ifdef LCC_ON
@@ -71,12 +76,19 @@ static const uint32_t kCanBps = 125UL * 1000UL;
 // OwlThree 05.01.01.01.A5.*  (.A5.01 = D1 R32 display; this node = .A5.02)
 static const uint64_t kOwlThreeNodeId = 0x05010101A502ULL;
 static const uint64_t kEventBase = 0x05010101A5020000ULL;
-static const uint64_t kEvtThrow = kEventBase + 0x00ULL;
-static const uint64_t kEvtClose = kEventBase + 0x01ULL;
-static const uint64_t kEvtNeither = kEventBase + 0x10ULL;
-static const uint64_t kEvtThrown = kEventBase + 0x11ULL;
-static const uint64_t kEvtClosed = kEventBase + 0x12ULL;
-static const uint64_t kEvtBoth = kEventBase + 0x13ULL;
+static const unsigned kLiveServos = 2u;
+
+static uint64_t evt_throw(unsigned ch) {
+  return kEventBase + ((uint64_t)ch << 8);
+}
+
+static uint64_t evt_close(unsigned ch) {
+  return kEventBase + ((uint64_t)ch << 8) + 1ULL;
+}
+
+static uint64_t evt_limit(unsigned ch, unsigned code) {
+  return kEventBase + ((uint64_t)ch << 8) + 0x10ULL + (uint64_t)code;
+}
 
 enum {
   kDemoToFar = 0,
@@ -106,7 +118,7 @@ static uint32_t claimAliasAtMs = 0;
 static uint32_t lastStatusMs = 0;
 static LimitLadderConfig ladderCfg;
 static LimitLadderFilter ladderFilter(4);
-static TurnoutChannel turnout;
+static TurnoutChannel turnout[kLiveServos];
 static LimitState lastAnnounced = LIMIT_NEITHER;
 static bool announcedInit = false;
 static uint16_t nearUs = (uint16_t)RR_SG90_US_0;
@@ -137,10 +149,27 @@ static void write_hold_us(uint16_t us) {
     pwm.writeMicroseconds((uint8_t)i, us);
   }
 #else
-  if (!fallbackServo.attached()) {
-    fallbackServo.attach(rr_fallback_pwm_pin(0));
+  unsigned i;
+  for (i = 0; i < kLiveServos; ++i) {
+    if (!fallbackServo[i].attached()) {
+      fallbackServo[i].attach(rr_fallback_pwm_pin(i));
+    }
+    fallbackServo[i].writeMicroseconds(us);
   }
-  fallbackServo.writeMicroseconds(us);
+#endif
+}
+
+static void write_ch_us(unsigned ch, uint16_t us) {
+  if (ch >= kLiveServos) {
+    return;
+  }
+#if RR_USE_KS0258
+  pwm.writeMicroseconds((uint8_t)ch, us);
+#else
+  if (!fallbackServo[ch].attached()) {
+    fallbackServo[ch].attach(rr_fallback_pwm_pin(ch));
+  }
+  fallbackServo[ch].writeMicroseconds(us);
 #endif
 }
 
@@ -221,28 +250,30 @@ static int lcc_buffer_size(struct lcc_context *) {
 #endif
 }
 
-static uint64_t event_for_limit(LimitState lim) {
+static uint64_t event_for_limit(unsigned ch, LimitState lim) {
   if (lim == LIMIT_THROWN) {
-    return kEvtThrown;
+    return evt_limit(ch, 1u);
   }
   if (lim == LIMIT_CLOSED) {
-    return kEvtClosed;
+    return evt_limit(ch, 2u);
   }
   if (lim == LIMIT_BOTH) {
-    return kEvtBoth;
+    return evt_limit(ch, 3u);
   }
-  return kEvtNeither;
-}
-
-static void handle_command(TurnoutCommand cmd) {
-  turnout.command(cmd, millis());
+  return evt_limit(ch, 0u);
 }
 
 static void incoming_event(struct lcc_context *, uint64_t event_id) {
-  if (event_id == kEvtThrow) {
-    handle_command(TURNOUT_CMD_THROWN);
-  } else if (event_id == kEvtClose) {
-    handle_command(TURNOUT_CMD_CLOSED);
+  unsigned ch;
+  for (ch = 0; ch < kLiveServos; ++ch) {
+    if (event_id == evt_throw(ch)) {
+      turnout[ch].command(TURNOUT_CMD_THROWN, millis());
+      return;
+    }
+    if (event_id == evt_close(ch)) {
+      turnout[ch].command(TURNOUT_CMD_CLOSED, millis());
+      return;
+    }
   }
 }
 
@@ -254,7 +285,7 @@ static void maybe_announce_limit(LimitState lim) {
   announcedInit = true;
   if (ctx != NULL && lcc_context_current_state(ctx) != LCC_STATE_INHIBITED) {
     lcc_event_produce_event(lcc_context_get_event_context(ctx),
-                            event_for_limit(lim));
+                            event_for_limit(0u, lim));
   }
   RR_LCC_PRINT(F("limit-event "));
   RR_LCC_PRINTLN(limit_state_name(lim));
@@ -273,16 +304,14 @@ static void handle_serial() {
   }
   const char key = cmd_key((char)Serial.read());
   if (key == 't') {
-    handle_command(TURNOUT_CMD_THROWN);
+    turnout[0].command(TURNOUT_CMD_THROWN, millis());
   } else if (key == 'c') {
-    handle_command(TURNOUT_CMD_CLOSED);
+    turnout[0].command(TURNOUT_CMD_CLOSED, millis());
   } else if (key == 's') {
-    RR_LCC_PRINT(F("limit="));
-    RR_LCC_PRINT(limit_state_name(turnout.last_limit()));
-    RR_LCC_PRINT(F(" motion="));
-    RR_LCC_PRINT(turnout.motion_name());
-    RR_LCC_PRINT(F(" hold_us="));
-    RR_LCC_PRINTLN(holdUs);
+    RR_LCC_PRINT(F("ch0="));
+    RR_LCC_PRINT(turnout[0].motion_name());
+    RR_LCC_PRINT(F(" ch1="));
+    RR_LCC_PRINTLN(turnout[1].motion_name());
   }
 }
 
@@ -352,12 +381,17 @@ static void setup_lcc(uint64_t unique_id) {
                      LCC_MEMORY_CDI_FLAG_ARDUINO_PROGMEM);
   struct lcc_event_context *evt = lcc_event_new(ctx);
   lcc_event_set_incoming_event_function(evt, incoming_event);
-  lcc_event_add_event_consumed(evt, kEvtThrow);
-  lcc_event_add_event_consumed(evt, kEvtClose);
-  lcc_event_add_event_produced(evt, kEvtNeither);
-  lcc_event_add_event_produced(evt, kEvtThrown);
-  lcc_event_add_event_produced(evt, kEvtClosed);
-  lcc_event_add_event_produced(evt, kEvtBoth);
+  {
+    unsigned ch;
+    for (ch = 0; ch < kLiveServos; ++ch) {
+      lcc_event_add_event_consumed(evt, evt_throw(ch));
+      lcc_event_add_event_consumed(evt, evt_close(ch));
+    }
+  }
+  lcc_event_add_event_produced(evt, event_for_limit(0u, LIMIT_NEITHER));
+  lcc_event_add_event_produced(evt, event_for_limit(0u, LIMIT_THROWN));
+  lcc_event_add_event_produced(evt, event_for_limit(0u, LIMIT_CLOSED));
+  lcc_event_add_event_produced(evt, event_for_limit(0u, LIMIT_BOTH));
   if (lcc_context_generate_alias(ctx) != LCC_OK) {
     RR_LCC_PRINTLN(F("alias generate fail"));
     while (1) {
@@ -432,7 +466,12 @@ void setup() {
   ladderCfg = limit_ladder_default_10bit();
   TurnoutConfig cfg = turnout_default_sg90();
   cfg.releasePwmWhenIdle = false;
-  turnout.set_config(cfg);
+  {
+    unsigned ch;
+    for (ch = 0; ch < kLiveServos; ++ch) {
+      turnout[ch].set_config(cfg);
+    }
+  }
 
 #if RR_USE_KS0258
   pwm.begin();
@@ -444,11 +483,11 @@ void setup() {
   setup_can();
   setup_lcc(read_unique_id());
 
-  RR_LCC_PRINTLN(F("LccTurnoutNode LibLCC; one cycle then hold 90"));
-  RR_LCC_PRINT(F("RR_USE_KS0258="));
-  RR_LCC_PRINTLN(RR_USE_KS0258);
+  RR_LCC_PRINTLN(F("LccTurnoutNode ch0+ch1; hold 90 then one cycle"));
   RR_LCC_PRINTLN(F("Do not t/c until ladder is wired"));
 
+  write_hold_us(midUs);
+  delay(1000);
   write_hold_us(nearUs);
   delay(400);
   demo_begin_phase(kDemoToFar);
@@ -463,22 +502,36 @@ void loop() {
 #endif
   const int avg = ladderFilter.push(analogRead(RR_LIMIT_PIN_0));
   const LimitState lim = limit_ladder_decode(avg, ladderCfg);
-  /* Ladder is unwired: analog floats ~thrown and must not "arrive" a move. */
-  turnout.update(now, LIMIT_NEITHER);
-  if (turnout.last_command() != TURNOUT_CMD_NONE) {
-    warmupDone = true;
-    write_hold_us(turnout.pulse_us());
-  } else if (!warmupDone) {
-    demo_tick(now);
-  } else {
-    write_hold_us(midUs);
+  {
+    unsigned ch;
+    bool anyCmd = false;
+    for (ch = 0; ch < kLiveServos; ++ch) {
+      turnout[ch].update(now, LIMIT_NEITHER);
+      if (turnout[ch].last_command() != TURNOUT_CMD_NONE) {
+        anyCmd = true;
+      }
+    }
+    if (anyCmd) {
+      warmupDone = true;
+    }
+    if (!warmupDone) {
+      demo_tick(now);
+    } else {
+      for (ch = 0; ch < kLiveServos; ++ch) {
+        const uint16_t us =
+            (turnout[ch].last_command() != TURNOUT_CMD_NONE)
+                ? turnout[ch].pulse_us()
+                : midUs;
+        write_ch_us(ch, us);
+      }
+    }
   }
   maybe_announce_limit(lim);
   if ((now - lastStatusMs) >= 1000u) {
     lastStatusMs = now;
-    RR_LCC_PRINT(F("hold_us="));
-    RR_LCC_PRINT(holdUs);
-    RR_LCC_PRINT(F(" motion="));
-    RR_LCC_PRINTLN(turnout.motion_name());
+    RR_LCC_PRINT(F("ch0_us="));
+    RR_LCC_PRINT(turnout[0].pulse_us());
+    RR_LCC_PRINT(F(" ch1_us="));
+    RR_LCC_PRINTLN(turnout[1].pulse_us());
   }
 }

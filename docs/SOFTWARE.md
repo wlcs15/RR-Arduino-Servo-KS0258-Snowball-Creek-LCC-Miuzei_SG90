@@ -6,7 +6,8 @@ The firmware is split so the same turnout logic can run on more than one Arduino
 | --- | --- |
 | `lib/rr_servo` | Portable decode + motion state machine (no Arduino types except in `BoardPins.h`) |
 | `sketches/TurnoutBringup` | Mega/Uno serial bring-up: KS0258 + analog ladder |
-| `sketches/LccTurnoutNode` | Same motion path plus Snowball Creek CAN. Small LCC node via Library Manager **LibLCC + ACAN2515 + M95_EEPROM**. Linking LibLCC makes that firmware image GPL-2.0; do not copy it into `lib/`. |
+| `sketches/LccTurnoutNode` | Same motion path plus Snowball Creek CAN. Small LCC node via Library Manager **LibLCC + ACAN2517 + M95_EEPROM** (Rev 4 MCP2518). Linking LibLCC makes that firmware image GPL-2.0; do not copy it into `lib/`. |
+| `docs/jmri/` | Canonical JMRI Layout Editor panels (copy into `~/.jmri/…`; do not commit the live profile) |
 | `tests/` | Host tests (today: a small C++ driver; policy is Unity on host and on-target) |
 
 ## Libraries
@@ -20,7 +21,7 @@ git submodule update --init --recursive
 - `third_party/Adafruit-PWM-Servo-Driver-Library`
 - `third_party/Adafruit_BusIO`
 
-5 V Arduino LCC uses Snowball Creek’s stack (**LibLCC + ACAN2515 + M95_EEPROM**, Library Manager). LibLCC is GPL-2.0; that Mega/Uno **binary** is GPL. Do not vendor-copy it into `lib/`. 3.3 V nodes (ESP32) use OpenMRNIDF / OpenMRNLite and a 3.3 V CAN board, not Snowball Creek.
+5 V Arduino LCC uses Snowball Creek’s stack (**LibLCC + ACAN2517 + M95_EEPROM**, Library Manager; Rev 4 is MCP2518). LibLCC is GPL-2.0; that Mega/Uno **binary** is GPL. Do not vendor-copy it into `lib/`. 3.3 V nodes (ESP32) use OpenMRNIDF / OpenMRNLite and a 3.3 V CAN board, not Snowball Creek.
 
 Install this repo’s library:
 
@@ -50,20 +51,19 @@ Snowball Creek `libLCC` is a C library with incoming-frame / write callbacks, wh
 
 Tune `TurnoutConfig` pulse widths after the 3D mount is installed. Tune `LimitLadderConfig` if your measured ADC bands are not near the table in the hardware doc.
 
-## LCC events (later)
+## LCC events
 
-OwlThree range **05.01.01.01.A5.*** — first servo node **05.01.01.01.A5.02**.
+OwlThree range **05.01.01.01.A5.00–FF**. Node **05.01.01.01.A5.02** (`.A5.01` is the D1 R32 display). Next free **`.A5.03`**. Factory EEPROM ID is printed, not used. Channel index is byte 6 of the event.
 
-| Event low byte | Direction | Meaning |
+| Event | Direction | Meaning |
 | --- | --- | --- |
-| 0x00 | consume | Throw |
-| 0x01 | consume | Close |
-| 0x10 | produce | Neither limit |
-| 0x11 | produce | Thrown limit |
-| 0x12 | produce | Closed limit |
-| 0x13 | produce | Both limits (fault) |
+| `05.01.01.01.A5.02.00.00` | consume | ch0 throw |
+| `05.01.01.01.A5.02.00.01` | consume | ch0 close |
+| `05.01.01.01.A5.02.01.00` | consume | ch1 throw |
+| `05.01.01.01.A5.02.01.01` | consume | ch1 close |
+| `05.01.01.01.A5.02.00.10`–`.13` | produce | ch0 limits (neither/thrown/closed/both) |
 
-Mega `LccTurnoutNode` unique ID is **05.01.01.01.A5.02** (OwlThree; factory EEPROM ID is printed but not used). Events: `05.01.01.01.A5.02.00.00` throw, `.00.01` close, `.00.10`–`.00.13` limits. Snowball Creek Rev 4 uses **MCP2518** (ACAN2517). D1 R32 / ARM 3.3 V nodes use OpenMRNIDF / OpenMRNLite.
+Panel: [docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml](jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml). Snowball Creek Rev 4 uses **MCP2518** (ACAN2517). D1 R32 / ARM 3.3 V nodes use OpenMRNIDF / OpenMRNLite.
 
 ## Host tests
 
