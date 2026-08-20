@@ -28,17 +28,22 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
 
 ## Status
 
-- Portable ladder + motion: `lib/rr_servo` (host tests pass)
-- Mega serial bring-up compiles (`sketches/TurnoutBringup`)
-- Mega sketch with Snowball Creek CAN pins compiles; LCC events not linked (`libLCC` is GPL-2.0)
-- Adafruit PCA9685 + BusIO submodules
+- Portable ladder + motion: `lib/rr_servo` (host Unity 8/8, llvm-cov **96.83%** lines)
+- Mega serial bring-up: `sketches/TurnoutBringup` (DEBUG-off 45–135–90 cycle)
+- Mega **KS0258 ch0** proven with JMRI (**v1.1**): `sketches/LccTurnoutNode`
+  - Snowball Creek **Rev 4 MCP2518** (ACAN2517), not MCP2515
+  - Node **05.01.01.01.A5.02** (OwlThree; `.A5.01` is the D1 R32 display)
+  - Power-up: one 45→135→45→90 sweep, then hold 90° until an LCC command
+  - JMRI turnout `Left servo KS0258`: events `…A5.02.00.00` throw / `…A5.02.00.01` close (1000/2000 µs until pulses are trimmed)
+  - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
+- Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
 - Other CPUs and TFT: not started (branch names reserved)
 
 ## Electrical stacks (keep separate)
 
 **Mega 2560 trunk (5 V):** Snowball Creek + KS0258 + 5 V analog ladder + SG90 on KS0258 **V+**. Safe.
 
-**Wemos D1 R32 (3.3 V GPIO):** no Snowball Creek, no KS0258 shield. Onboard LEDC PWM (first servo **D2 / GPIO26**). Analog **A1** (not A0 — GPIO2 is a boot strap). Ladder pull-up to **3.3 V**. SG90 **power still 5 V**. CAN later via **SN65HVD230 module** on TWAI GPIOs — not D14/D15 (those are input-only ADC on this board). Ignore CANADUINO Nano adapters.
+**Wemos D1 R32 (3.3 V GPIO):** no Snowball Creek, no KS0258 shield. Onboard LEDC PWM (first servo **D2 / GPIO26**). Analog **A1** (not A0 — GPIO2 is a boot strap). Ladder pull-up to **3.3 V**. SG90 **power still 5 V**. CAN: **Waveshare RS485 CAN Shield** or another 3.3 V CAN board — not Snowball Creek. Ignore CANADUINO Nano adapters.
 
 Do not mix the 5 V Mega shield stack onto the ESP32.
 
@@ -59,7 +64,17 @@ python scripts/run_coverage.py
 
 Serial 115200: `t` throw, `c` close, `s` status.
 
-OpenLCB IDs: OwlThree **05.01.01.01.A5.*** — first servo node **05.01.01.01.A5.02** (`.A5.01` is the existing D1 R32 display node).
+OpenLCB / LCC (5 V Mega trunk): Snowball Creek + Library Manager **LibLCC + ACAN2517 + M95_EEPROM** (Rev 4 is MCP2518). Node **05.01.01.01.A5.02**. Next free OwlThree ID is **`.A5.03`**. Do not reuse `.A5.01` (D1 R32 display). Do not use the shield EEPROM ID (`02.02.02.00.01.4C`) or `03.00.AB.01.*`.
+
+```bash
+# Library Manager (once per PC): LibLCC, ACAN2517, ACAN2515, M95_EEPROM
+arduino-cli compile --fqbn arduino:avr:mega:cpu=atmega2560 \
+  --library lib/rr_servo --library third_party/Adafruit-PWM-Servo-Driver-Library \
+  --library third_party/Adafruit_BusIO sketches/LccTurnoutNode
+# Linux Mega is VID 2341:0042 (often /dev/ttyACM0). Win11 was COM5.
+# Leave the serial monitor closed during JMRI clicks (DTR resets the node).
+# Optional later: -DLCC_ON (no UART)  -DOPTIMIZE_MEMORY (-Os, smaller CAN FIFOs)
+```
 
 ## CPU branches
 

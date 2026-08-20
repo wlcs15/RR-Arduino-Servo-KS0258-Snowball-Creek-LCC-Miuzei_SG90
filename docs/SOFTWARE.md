@@ -6,7 +6,7 @@ The firmware is split so the same turnout logic can run on more than one Arduino
 | --- | --- |
 | `lib/rr_servo` | Portable decode + motion state machine (no Arduino types except in `BoardPins.h`) |
 | `sketches/TurnoutBringup` | Mega/Uno serial bring-up: KS0258 + analog ladder |
-| `sketches/LccTurnoutNode` | Same motion path plus Snowball Creek CAN pins; LCC events not linked (GPL `libLCC` avoided) |
+| `sketches/LccTurnoutNode` | Same motion path plus Snowball Creek CAN. Small LCC node via Library Manager **LibLCC + ACAN2515 + M95_EEPROM**. Linking LibLCC makes that firmware image GPL-2.0; do not copy it into `lib/`. |
 | `tests/` | Host tests (today: a small C++ driver; policy is Unity on host and on-target) |
 
 ## Libraries
@@ -20,7 +20,7 @@ git submodule update --init --recursive
 - `third_party/Adafruit-PWM-Servo-Driver-Library`
 - `third_party/Adafruit_BusIO`
 
-Do not add Snowball Creek **libLCC** (GPL-2.0). LCC on D1 R32 / ARM is OpenMRNIDF / OpenMRNLite.
+5 V Arduino LCC uses Snowball Creek’s stack (**LibLCC + ACAN2515 + M95_EEPROM**, Library Manager). LibLCC is GPL-2.0; that Mega/Uno **binary** is GPL. Do not vendor-copy it into `lib/`. 3.3 V nodes (ESP32) use OpenMRNIDF / OpenMRNLite and a 3.3 V CAN board, not Snowball Creek.
 
 Install this repo’s library:
 
@@ -63,7 +63,7 @@ OwlThree range **05.01.01.01.A5.*** — first servo node **05.01.01.01.A5.02**.
 | 0x12 | produce | Closed limit |
 | 0x13 | produce | Both limits (fault) |
 
-LCC event I/O on Mega waits for a BSD-licensed OpenLCB stack. D1 R32 / ARM will use OpenMRNIDF / OpenMRNLite.
+Mega `LccTurnoutNode` unique ID is **05.01.01.01.A5.02** (OwlThree; factory EEPROM ID is printed but not used). Events: `05.01.01.01.A5.02.00.00` throw, `.00.01` close, `.00.10`–`.00.13` limits. Snowball Creek Rev 4 uses **MCP2518** (ACAN2517). D1 R32 / ARM 3.3 V nodes use OpenMRNIDF / OpenMRNLite.
 
 ## Host tests
 
