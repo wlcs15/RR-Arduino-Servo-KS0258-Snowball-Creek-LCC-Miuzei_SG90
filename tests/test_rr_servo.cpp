@@ -33,6 +33,7 @@ static void test_turnout_arrives_on_limit(void) {
   TurnoutChannel ch;
   ch.command(TURNOUT_CMD_THROWN, 1000);
   TEST_ASSERT_EQUAL(TURNOUT_MOVING_THROWN, ch.motion());
+  TEST_ASSERT_EQUAL_STRING("moving-thrown", ch.motion_name());
   TEST_ASSERT_EQUAL(1, ch.drive_enabled() ? 1 : 0);
   TEST_ASSERT_EQUAL(2000, ch.pulse_us());
   ch.update(1100, LIMIT_NEITHER);
@@ -51,23 +52,76 @@ static void test_turnout_timeout_and_both(void) {
   TEST_ASSERT_EQUAL(TURNOUT_FAULT, ch.motion());
   TEST_ASSERT_EQUAL(TURNOUT_FAULT_TIMEOUT, ch.fault());
   TEST_ASSERT_EQUAL(0, ch.drive_enabled() ? 1 : 0);
+  TEST_ASSERT_EQUAL_STRING("timeout", ch.fault_name());
 
   TurnoutChannel ch2;
   ch2.command(TURNOUT_CMD_THROWN, 0);
   ch2.update(10, LIMIT_BOTH);
   TEST_ASSERT_EQUAL(TURNOUT_FAULT_BOTH_LIMITS, ch2.fault());
   TEST_ASSERT_EQUAL(0, ch2.drive_enabled() ? 1 : 0);
+  TEST_ASSERT_EQUAL_STRING("both-limits", ch2.fault_name());
+  TEST_ASSERT_EQUAL_STRING("fault", ch2.motion_name());
+}
+
+static void test_limit_state_names(void) {
+  TEST_ASSERT_EQUAL_STRING("neither", limit_state_name(LIMIT_NEITHER));
+  TEST_ASSERT_EQUAL_STRING("thrown", limit_state_name(LIMIT_THROWN));
+  TEST_ASSERT_EQUAL_STRING("closed", limit_state_name(LIMIT_CLOSED));
+  TEST_ASSERT_EQUAL_STRING("both", limit_state_name(LIMIT_BOTH));
+  TEST_ASSERT_EQUAL_STRING("?", limit_state_name((LimitState)99));
+}
+
+static void test_filter_window_and_reset(void) {
+  LimitLadderFilter tiny(0);
+  TEST_ASSERT_EQUAL(10, tiny.push(10));
+  LimitLadderFilter huge(20);
+  TEST_ASSERT_EQUAL(7, huge.push(7));
+  LimitLadderFilter f(2);
+  TEST_ASSERT_EQUAL(10, f.push(10));
+  TEST_ASSERT_EQUAL(15, f.push(20));
+  f.reset();
+  TEST_ASSERT_EQUAL(5, f.push(5));
+}
+
+static void test_turnout_names_config_and_none(void) {
+  TurnoutChannel ch;
+  TEST_ASSERT_EQUAL_STRING("idle", ch.motion_name());
+  TEST_ASSERT_EQUAL_STRING("none", ch.fault_name());
+  ch.command(TURNOUT_CMD_NONE, 0);
+  TEST_ASSERT_EQUAL(TURNOUT_IDLE, ch.motion());
+  TurnoutConfig cfg = turnout_default_sg90();
+  cfg.releasePwmWhenIdle = false;
+  ch.set_config(cfg);
+  TEST_ASSERT_EQUAL(cfg.closedPulseUs, ch.config().closedPulseUs);
+  ch.command(TURNOUT_CMD_CLOSED, 100);
+  TEST_ASSERT_EQUAL_STRING("moving-closed", ch.motion_name());
+  TEST_ASSERT_EQUAL(TURNOUT_CMD_CLOSED, ch.last_command());
+  ch.update(110, LIMIT_NEITHER);
+  TEST_ASSERT_EQUAL(LIMIT_NEITHER, ch.last_limit());
+  TEST_ASSERT_EQUAL_STRING("moving-closed", ch.motion_name());
+  ch.update(120, LIMIT_CLOSED);
+  TEST_ASSERT_EQUAL(1, ch.arrived() ? 1 : 0);
+  ch.update(500, LIMIT_CLOSED);
+  TEST_ASSERT_EQUAL(1, ch.drive_enabled() ? 1 : 0);
 }
 
 void setUp(void) {}
 void tearDown(void) {}
 
-int main(void) {
+int rr_servo_run_unity_tests(void) {
   UNITY_BEGIN();
   RUN_TEST(test_ladder_bands);
   RUN_TEST(test_ladder_scaled_12bit);
   RUN_TEST(test_filter_average);
   RUN_TEST(test_turnout_arrives_on_limit);
   RUN_TEST(test_turnout_timeout_and_both);
+  RUN_TEST(test_limit_state_names);
+  RUN_TEST(test_filter_window_and_reset);
+  RUN_TEST(test_turnout_names_config_and_none);
   return UNITY_END();
 }
+
+#ifndef ARDUINO
+int main(void) { return rr_servo_run_unity_tests(); }
+#endif
+

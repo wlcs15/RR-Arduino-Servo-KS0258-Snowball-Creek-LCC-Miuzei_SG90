@@ -52,6 +52,9 @@ ln -s "$(pwd)/lib/rr_servo" "$HOME/Arduino/libraries/rr_servo"
 ./scripts/run_tests.sh
 ./scripts/run_cppcheck.sh
 # optional: ./scripts/run_lizard.sh  ./scripts/run_clang_tidy.sh
+# coverage (Clang llvm-cov, not gcovr/Ceedling/MinGW):
+python scripts/run_coverage.py
+# Mega Unity (+ optional gcov link): python scripts/compile_mega_unity.py --coverage
 ```
 
 Serial 115200: `t` throw, `c` close, `s` status.
@@ -131,10 +134,10 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 | --- | --- |
 | **DEBUG** | Firmware and a **host DEBUG CLI** (fake ADC, `t`/`c` commands, print limit/motion). `-DDEBUG`, extra serial/printf, no optimization. Separate from Unity. First Mega bring-up holds every KS0258 channel at **90 deg (1500 us)** on a 0–180 SG90 map (1000/1500/2000 us). **Do not flash that onto a servo whose horn is already at a mechanical stop** (see below). |
 | **Unit Test** | **Unity** (ThrowTheSwitch), git submodule. Same tests on **host** and **on-target** (Mega first). |
-| **Cyclomatic complexity** | **lizard**, report **per file / per module**. **Fail if any function in our code exceeds 10.** No fail (and no requirement) on `third_party/`, git submodules, or other code we did not author. |
+| **Cyclomatic complexity** | **lizard**, report **per module** (`lib/rr_servo`, each sketch, `tests`, `host`). Arduino `.ino` included. **Fail if any function in our code exceeds 10** (McCabe is per-function; module table is NLOC / function count / avg / max CCN). No fail on `third_party/` or other submodules. Windows: `python scripts/run_lizard.py`. |
 | **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. This target **fails on error-severity only**; warnings are reports. |
 
-Host CMake (C11/C++11): `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). ESP32 firmware is not in this drop.
+Host CMake (C11/C++11, Clang on Ubuntu and Windows 11): `python scripts/build_host.py` or `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Coverage is Clang source-based (`-fprofile-instr-generate -fcoverage-mapping`) plus **llvm-cov** — not gcovr, Ceedling, or MinGW. Usual command: `python scripts/run_coverage.py`. Same tree: `cmake --build build/host-coverage --target coverage`. Report is `lib/rr_servo` only; HTML is `build/host-coverage/coverage/index.html`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). ESP32 firmware is not in this drop.
 
 ## Design origin
 

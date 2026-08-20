@@ -51,6 +51,44 @@ static void handle_command(TurnoutCommand cmd) {
   turnout.command(cmd, millis());
 }
 
+static char cmd_key(char ch) {
+  if (ch >= 'A' && ch <= 'Z') {
+    return (char)(ch - 'A' + 'a');
+  }
+  return ch;
+}
+
+static void maybe_announce_limit(LimitState lim) {
+  if (announcedInit && lim == lastAnnounced) {
+    return;
+  }
+  lastAnnounced = lim;
+  announcedInit = true;
+  Serial.print(F("limit-event "));
+  Serial.println(limit_state_name(lim));
+}
+
+static void print_status(LimitState lim) {
+  Serial.print(F("limit="));
+  Serial.print(limit_state_name(lim));
+  Serial.print(F(" motion="));
+  Serial.println(turnout.motion_name());
+}
+
+static void handle_serial(LimitState lim) {
+  if (!Serial.available()) {
+    return;
+  }
+  const char key = cmd_key((char)Serial.read());
+  if (key == 't') {
+    handle_command(TURNOUT_CMD_THROWN);
+  } else if (key == 'c') {
+    handle_command(TURNOUT_CMD_CLOSED);
+  } else if (key == 's') {
+    print_status(lim);
+  }
+}
+
 // OpenLCB event I/O belongs here once a BSD-licensed AVR stack is chosen.
 
 void setup() {
@@ -90,28 +128,8 @@ void loop() {
   const LimitState lim = limit_ladder_decode(avg, ladderCfg);
   turnout.update(millis(), lim);
   apply_pwm();
-
-  if (!announcedInit || lim != lastAnnounced) {
-    lastAnnounced = lim;
-    announcedInit = true;
-    Serial.print(F("limit-event "));
-    Serial.println(limit_state_name(lim));
-  }
-
-  if (Serial.available()) {
-    const char ch = (char)Serial.read();
-    if (ch == 't' || ch == 'T') {
-      handle_command(TURNOUT_CMD_THROWN);
-    } else if (ch == 'c' || ch == 'C') {
-      handle_command(TURNOUT_CMD_CLOSED);
-    } else if (ch == 's' || ch == 'S') {
-      Serial.print(F("limit="));
-      Serial.print(limit_state_name(lim));
-      Serial.print(F(" motion="));
-      Serial.println(turnout.motion_name());
-    }
-  }
-
+  maybe_announce_limit(lim);
+  handle_serial(lim);
 #if RR_HAS_ACAN
   can.poll();
 #endif

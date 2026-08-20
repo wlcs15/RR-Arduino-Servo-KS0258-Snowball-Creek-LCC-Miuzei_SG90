@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Shared CMake + Clang host-build helpers for Ubuntu and Windows 11.
+
+No MinGW, no Ceedling, no gcovr. Coverage uses llvm-cov.
+"""
+from __future__ import print_function
+
+import os
+import shutil
+import subprocess
+import sys
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+HOST_BUILD = os.path.join(ROOT, "build", "host")
+COVERAGE_BUILD = os.path.join(ROOT, "build", "host-coverage")
+
+
+def _which(name):
+    found = shutil.which(name)
+    if found:
+        return found
+    extras = []
+    if os.name == "nt":
+        extras = [
+            os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "CMake", "bin"),
+            os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "LLVM", "bin"),
+        ]
+        pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        extras.append(os.path.join(pf86, "Microsoft Visual Studio", "Installer"))
+    for folder in extras:
+        candidate = os.path.join(folder, name)
+        if os.path.isfile(candidate):
+            return candidate
+        if os.name == "nt":
+            candidate_exe = candidate + ".exe"
+            if os.path.isfile(candidate_exe):
+                return candidate_exe
+    return None
+
+
+def require(name, extra=""):
+    path = _which(name)
+    if not path:
+        msg = "missing %s" % name
+        if extra:
+            msg += " (%s)" % extra
+        raise SystemExit(msg)
+    return path
+
+
+def find_nmake():
+    found = _which("nmake")
+    if found:
+        return found
+    vswhere = _which("vswhere")
+    if not vswhere:
+        pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        vswhere = os.path.join(
+            pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe"
+        )
+        if not os.path.isfile(vswhere):
+            return None
+    try:
+        out = subprocess.check_output(
+            [vswhere, "-latest", "-products", "*", "-find", r"**\nmake.exe"],
+            universal_newlines=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
+    preferred = [ln for ln in lines if "Hostx64" in ln and "x64" in ln]
+    if preferred:
+        return preferred[0]
+    return lines[0] if lines else None
+
+
+def generator_and_env():
+    """Return (generator, extra_env) for a single-config Clang host build."""
+    env = os.environ.copy()
+    if os.name == "nt":
+        ninja = _which("ninja")
+        if ninja:
+            return "Ninja", env
+        nmake = find_nmake()
+        if not nmake:
+            raise SystemExit(
+                "Windows host build needs nmake (VS Build Tools) or ninja. "
+                "Not using MinGW."
+            )
+        nmake_dir = os.path.dirname(nmake)
+        env["PATH"] = nmake_dir + os.pathsep + env.get("PATH", "")
+        return "NMake Makefiles", env
+    ninja = _which("ninja")
+    if ninja:
+        return "Ninja", env
+    return "Unix Makefiles", env
+
+
+def _read_cache_kv(cache_text, key):
+    prefix = key + "="
+    for line in cache_text.splitlines():
+        if line.startswith(prefix):
+            return line.split("=", 1)[1]
+    return None
+
+
+def reset_stale_cache(build_dir, gen):
+    """Drop CMakeCache when this tree was last configured on the other OS."""
+    cache_path = os.path.join(build_dir, "CMakeCache.txt")
+    if not os.path.isfile(cache_path):
+        return
+    with open(cache_path, "r", encoding="utf-8", errors="replace") as handle:
+        text = handle.read()
+    cached_gen = _read_cache_kv(text, "CMAKE_GENERATOR:INTERNAL")
+    cached_home = _read_cache_kv(text, "CMAKE_HOME_DIRECTORY:INTERNAL")
+    root_norm = os.path.normcase(os.path.normpath(ROOT))
+    home_norm = os.path.normcase(os.path.normpath(cached_home)) if cached_home else ""
+    stale = False
+    if cached_gen and cached_gen != gen:
+        stale = True
+    if cached_home and home_norm != root_norm:
+        stale = True
+    if not stale:
+        return
+    print("resetting stale CMake cache in %s (was %s / %s)" % (build_dir, cached_gen, cached_home))
+    os.remove(cache_path)
+    cmake_files = os.path.join(build_dir, "CMakeFiles")
+    if os.path.isdir(cmake_files):
+        shutil.rmtree(cmake_files)
+
+
+def cmake_configure(build_dir, coverage=False):
+    cmake = require("cmake", "add C:\\Program Files\\CMake\\bin to PATH")
+    clang = require("clang", "LLVM Clang")
+    clangxx = require("clang++", "LLVM Clang")
+    gen, env = generator_and_env()
+    os.makedirs(build_dir, exist_ok=True)
+    reset_stale_cache(build_dir, gen)
+    cmd = [
+        cmake,
+        "-S",
+        ROOT,
+        "-B",
+        build_dir,
+        "-G",
+        gen,
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_C_COMPILER=" + clang,
+        "-DCMAKE_CXX_COMPILER=" + clangxx,
+        "-DRR_ENABLE_COVERAGE=" + ("ON" if coverage else "OFF"),
+    ]
+    print(" ".join(cmd))
+    subprocess.check_call(cmd, env=env)
+    return env
+
+
+def cmake_build(build_dir, env, target=None):
+    cmake = require("cmake")
+    cmd = [cmake, "--build", build_dir]
+    if target:
+        cmd.extend(["--target", target])
+    print(" ".join(cmd))
+    subprocess.check_call(cmd, env=env)
+
+
+def tests_exe(build_dir):
+    exe = os.path.join(build_dir, "rr_servo_tests.exe")
+    if os.path.isfile(exe):
+        return exe
+    unix = os.path.join(build_dir, "rr_servo_tests")
+    if os.path.isfile(unix):
+        return unix
+    raise SystemExit("rr_servo_tests not built in %s" % build_dir)
+
+
+if __name__ == "__main__":
+    sys.stderr.write("import host_cmake from build_host.py / run_coverage.py\n")
+    sys.exit(2)

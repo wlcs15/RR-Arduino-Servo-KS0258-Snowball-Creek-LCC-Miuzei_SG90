@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-lizard_cmd=()
-if command -v lizard >/dev/null 2>&1; then
-  lizard_cmd=(lizard)
-elif python3 -c "import lizard" >/dev/null 2>&1; then
-  lizard_cmd=(python3 -m lizard)
+if command -v python3 >/dev/null 2>&1; then
+  py=python3
+elif command -v python >/dev/null 2>&1; then
+  py=python
 else
-  echo "lizard not installed (pip install --user lizard)"
+  echo "python3 not found"
   exit 1
 fi
-# Fail at cyclomatic complexity 10 on our sources only.
-"${lizard_cmd[@]}" --CCN 10 -w -l cpp -l c \
-  "$root/lib" "$root/sketches" "$root/tests" "$root/host"
+exec "$py" "$root/scripts/run_lizard.py"

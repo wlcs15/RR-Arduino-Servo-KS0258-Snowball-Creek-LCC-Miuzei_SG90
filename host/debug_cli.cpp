@@ -12,6 +12,37 @@
 #define RR_LOG(...)
 #endif
 
+static char cmd_key(char ch) {
+  if (ch >= 'A' && ch <= 'Z') {
+    return (char)(ch - 'A' + 'a');
+  }
+  return ch;
+}
+
+static bool apply_command(const char *line, int *raw, TurnoutChannel *ch) {
+  const char key = cmd_key(line[0]);
+  if (key == 'q') {
+    return false;
+  }
+  if (key == 'a') {
+    int v = 0;
+    if (std::sscanf(line + 1, "%d", &v) == 1) {
+      *raw = v;
+    }
+  } else if (key == 't') {
+    ch->command(TURNOUT_CMD_THROWN, 0);
+  } else if (key == 'c') {
+    ch->command(TURNOUT_CMD_CLOSED, 0);
+  }
+  return true;
+}
+
+static void print_state(int raw, int avg, const TurnoutChannel &ch) {
+  std::printf("adc=%d avg=%d limit=%s motion=%s us=%u drive=%d\n", raw, avg,
+              limit_state_name(ch.last_limit()), ch.motion_name(),
+              (unsigned)ch.pulse_us(), ch.drive_enabled() ? 1 : 0);
+}
+
 int main(void) {
   LimitLadderConfig cfg = limit_ladder_default_10bit();
   LimitLadderFilter filter(4);
@@ -24,24 +55,12 @@ int main(void) {
   std::printf("commands: a <adc> | t | c | s | q\n");
 
   while (std::fgets(line, (int)sizeof(line), stdin) != NULL) {
-    if (line[0] == 'q' || line[0] == 'Q') {
+    if (!apply_command(line, &raw, &ch)) {
       break;
-    }
-    if (line[0] == 'a' || line[0] == 'A') {
-      int v = 0;
-      if (std::sscanf(line + 1, "%d", &v) == 1) {
-        raw = v;
-      }
-    } else if (line[0] == 't' || line[0] == 'T') {
-      ch.command(TURNOUT_CMD_THROWN, 0);
-    } else if (line[0] == 'c' || line[0] == 'C') {
-      ch.command(TURNOUT_CMD_CLOSED, 0);
     }
     const int avg = filter.push(raw);
     ch.update(0, limit_ladder_decode(avg, cfg));
-    std::printf("adc=%d avg=%d limit=%s motion=%s us=%u drive=%d\n", raw, avg,
-                limit_state_name(ch.last_limit()), ch.motion_name(),
-                (unsigned)ch.pulse_us(), ch.drive_enabled() ? 1 : 0);
+    print_state(raw, avg, ch);
   }
   return 0;
 }

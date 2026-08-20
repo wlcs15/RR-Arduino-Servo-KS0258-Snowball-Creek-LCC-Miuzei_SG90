@@ -148,6 +148,53 @@ static void help() {
   Serial.println(F("Do not t/c until limit ladder is wired"));
 }
 
+static char cmd_key(char ch) {
+  if (ch >= 'A' && ch <= 'Z') {
+    return (char)(ch - 'A' + 'a');
+  }
+  return ch;
+}
+
+static void next_channel() {
+  selected = (selected + 1u) % (unsigned)RR_TURNOUT_COUNT;
+  Serial.print(F("sel="));
+  Serial.println(selected);
+}
+
+static void prev_channel() {
+  selected = (selected + (unsigned)RR_TURNOUT_COUNT - 1u) %
+             (unsigned)RR_TURNOUT_COUNT;
+  Serial.print(F("sel="));
+  Serial.println(selected);
+}
+
+static void status_all() {
+  unsigned i;
+  for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
+    print_one(i);
+  }
+}
+
+static void handle_serial(uint32_t nowMs) {
+  if (!Serial.available()) {
+    return;
+  }
+  const char key = cmd_key((char)Serial.read());
+  if (key == 'n') {
+    next_channel();
+  } else if (key == 'p') {
+    prev_channel();
+  } else if (key == 't') {
+    turnout[selected].command(TURNOUT_CMD_THROWN, nowMs);
+  } else if (key == 'c') {
+    turnout[selected].command(TURNOUT_CMD_CLOSED, nowMs);
+  } else if (key == 's') {
+    status_all();
+  } else if (key == 'h' || key == '?') {
+    help();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   while (!Serial && millis() < 2000) {
@@ -192,31 +239,7 @@ void loop() {
   for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
     sample_one(i, now);
   }
-
-  if (Serial.available()) {
-    const char ch = (char)Serial.read();
-    if (ch == 'n' || ch == 'N') {
-      selected = (selected + 1u) % (unsigned)RR_TURNOUT_COUNT;
-      Serial.print(F("sel="));
-      Serial.println(selected);
-    } else if (ch == 'p' || ch == 'P') {
-      selected = (selected + (unsigned)RR_TURNOUT_COUNT - 1u) %
-                 (unsigned)RR_TURNOUT_COUNT;
-      Serial.print(F("sel="));
-      Serial.println(selected);
-    } else if (ch == 't' || ch == 'T') {
-      turnout[selected].command(TURNOUT_CMD_THROWN, now);
-    } else if (ch == 'c' || ch == 'C') {
-      turnout[selected].command(TURNOUT_CMD_CLOSED, now);
-    } else if (ch == 's' || ch == 'S') {
-      for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
-        print_one(i);
-      }
-    } else if (ch == 'h' || ch == 'H' || ch == '?') {
-      help();
-    }
-  }
-
+  handle_serial(now);
   if ((now - lastStatusMs) >= 1000u) {
     lastStatusMs = now;
     print_one(selected);

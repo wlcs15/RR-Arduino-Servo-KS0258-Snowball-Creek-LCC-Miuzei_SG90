@@ -9,8 +9,4 @@ else
   echo "python3 not found"
   exit 1
 fi
-"$py" "$root/scripts/build_host.py"
-if [[ -x "$root/build/host/rr_servo_tests.exe" ]]; then
-  exec "$root/build/host/rr_servo_tests.exe"
-fi
-exec "$root/build/host/rr_servo_tests"
+exec "$py" "$root/scripts/run_coverage.py"

@@ -83,31 +83,12 @@ class TurnoutChannel {
 
   void update(uint32_t nowMs, LimitState limit) {
     lastLimit_ = limit;
-
     if (limit == LIMIT_BOTH) {
       enter_fault(TURNOUT_FAULT_BOTH_LIMITS);
       return;
     }
-
-    if (motion_ == TURNOUT_MOVING_THROWN) {
-      if (limit == LIMIT_THROWN) {
-        mark_arrived(nowMs);
-      } else if ((nowMs - moveStartedMs_) >= cfg_.moveTimeoutMs) {
-        enter_fault(TURNOUT_FAULT_TIMEOUT);
-      }
-    } else if (motion_ == TURNOUT_MOVING_CLOSED) {
-      if (limit == LIMIT_CLOSED) {
-        mark_arrived(nowMs);
-      } else if ((nowMs - moveStartedMs_) >= cfg_.moveTimeoutMs) {
-        enter_fault(TURNOUT_FAULT_TIMEOUT);
-      }
-    }
-
-    if (motion_ == TURNOUT_IDLE && arrived_ && cfg_.releasePwmWhenIdle) {
-      if ((nowMs - arrivedMs_) >= cfg_.holdAfterLimitMs) {
-        drive_ = false;
-      }
-    }
+    update_while_moving(nowMs, limit);
+    maybe_release_pwm(nowMs);
   }
 
   TurnoutMotion motion() const { return motion_; }
@@ -149,6 +130,34 @@ class TurnoutChannel {
   }
 
  private:
+  void update_while_moving(uint32_t nowMs, LimitState limit) {
+    LimitState want;
+    if (motion_ == TURNOUT_MOVING_THROWN) {
+      want = LIMIT_THROWN;
+    } else if (motion_ == TURNOUT_MOVING_CLOSED) {
+      want = LIMIT_CLOSED;
+    } else {
+      return;
+    }
+    if (limit == want) {
+      mark_arrived(nowMs);
+    } else if ((nowMs - moveStartedMs_) >= cfg_.moveTimeoutMs) {
+      enter_fault(TURNOUT_FAULT_TIMEOUT);
+    }
+  }
+
+  void maybe_release_pwm(uint32_t nowMs) {
+    if (motion_ != TURNOUT_IDLE) {
+      return;
+    }
+    if (!arrived_ || !cfg_.releasePwmWhenIdle) {
+      return;
+    }
+    if ((nowMs - arrivedMs_) >= cfg_.holdAfterLimitMs) {
+      drive_ = false;
+    }
+  }
+
   void mark_arrived(uint32_t nowMs) {
     motion_ = TURNOUT_IDLE;
     arrived_ = true;

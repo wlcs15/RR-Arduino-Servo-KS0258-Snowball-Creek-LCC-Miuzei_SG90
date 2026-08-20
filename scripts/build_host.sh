@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-build="$root/build/host"
-mkdir -p "$build"
-cmake -S "$root" -B "$build" -DCMAKE_BUILD_TYPE=Debug
-cmake --build "$build"
-echo "host binaries in $build"
+if command -v python3 >/dev/null 2>&1; then
+  py=python3
+elif command -v python >/dev/null 2>&1; then
+  py=python
+else
+  echo "python3 not found"
+  exit 1
+fi
+exec "$py" "$root/scripts/build_host.py"

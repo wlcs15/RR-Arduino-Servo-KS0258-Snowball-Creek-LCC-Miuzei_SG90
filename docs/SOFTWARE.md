@@ -65,13 +65,27 @@ OwlThree range **05.01.01.01.A5.*** — first servo node **05.01.01.01.A5.02**.
 
 LCC event I/O on Mega waits for a BSD-licensed OpenLCB stack. D1 R32 / ARM will use OpenMRNIDF / OpenMRNLite.
 
-## Host tests (interim)
+## Host tests
 
-Until Unity is added as a submodule, the stand-in driver is C++11:
+Unity is a git submodule (`third_party/Unity`). Host binaries are CMake + **Clang** (C11/C++11) on Ubuntu x86 and Windows 11:
 
 ```bash
-g++ -std=c++11 -I lib/rr_servo/src tests/test_rr_servo.cpp -o /tmp/rr_servo_tests
-/tmp/rr_servo_tests
+python scripts/build_host.py
+python scripts/run_coverage.py
 ```
 
-Policy (Google C++ / CERT, lizard 10, DEBUG CLI, Unity, OCLint Linux-only) is in the root README. Do not run lizard fail, OCLint, or style-fail on `third_party/` or other submodules.
+`run_coverage.py` configures `build/host-coverage` with `-DRR_ENABLE_COVERAGE=ON`, builds, runs Unity, then **llvm-cov** (not gcovr, Ceedling, MinGW, or AVR-GCC). After that tree exists you can also run `cmake --build build/host-coverage --target coverage`. The report covers `lib/rr_servo` only.
+
+On-target Unity (same eight tests as the host, no servo PWM) is `sketches/RrServoUnity`.
+
+```bash
+python scripts/compile_mega_unity.py
+python scripts/compile_mega_unity.py --coverage
+python scripts/compile_mega_unity.py --coverage --upload --port COM5
+```
+
+`--coverage` links Arduino avr-gcc **libgcov.a** (`lib/gcc/avr/7.3.0/avr6/`) and a tiny `__gcov_exit` shim (`sketches/RrServoUnity/gcov_exit.c`) because that archive has `__gcov_dump` but not `__gcov_exit`. Only `test_rr_servo.cpp` is instrumented so SRAM stays under 8 KB (instrumenting the Arduino core overflows Mega RAM).
+
+Do **not** add a tiny EEPROM/SD filesystem for dump: `avr-nm` on this `libgcov.a` shows `__gcov_dump` has **no** `fopen`/`fwrite` (empty AVR stub). SdFat/LittleFS/TEFS need SPI/SD and fight Snowball Creek; EepromFS/OSFS cannot hook a dump that never opens files. Line coverage percent is the host Clang llvm-cov report of the same tests.
+
+Policy (Google C++ / CERT, lizard 10, DEBUG CLI, Unity, OCLint Linux-only) is in the root README. Lizard prints a per-module table (`lib/rr_servo`, each sketch, `tests`, `host`) and still fails if any **function** CCN exceeds 10. Do not run lizard fail, OCLint, or style-fail on `third_party/` or other submodules.
