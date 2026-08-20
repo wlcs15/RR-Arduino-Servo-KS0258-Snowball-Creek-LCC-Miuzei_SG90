@@ -113,8 +113,12 @@ def reset_stale_cache(build_dir, gen):
         text = handle.read()
     cached_gen = _read_cache_kv(text, "CMAKE_GENERATOR:INTERNAL")
     cached_home = _read_cache_kv(text, "CMAKE_HOME_DIRECTORY:INTERNAL")
-    root_norm = os.path.normcase(os.path.normpath(ROOT))
-    home_norm = os.path.normcase(os.path.normpath(cached_home)) if cached_home else ""
+    # Dual-boot NTFS: /home/chucks/Git -> /NTFS/Git. Compare real paths.
+    root_norm = os.path.normcase(os.path.realpath(ROOT))
+    if cached_home:
+        home_norm = os.path.normcase(os.path.realpath(os.path.normpath(cached_home)))
+    else:
+        home_norm = ""
     stale = False
     if cached_gen and cached_gen != gen:
         stale = True
@@ -163,14 +167,22 @@ def cmake_build(build_dir, env, target=None):
     subprocess.check_call(cmd, env=env)
 
 
+def host_exe(build_dir, stem):
+    """Pick the native host binary. Dual-boot NTFS may leave both ELF and .exe."""
+    unix = os.path.join(build_dir, stem)
+    windows = os.path.join(build_dir, stem + ".exe")
+    if os.name == "nt":
+        candidates = (windows, unix)
+    else:
+        candidates = (unix, windows)
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    raise SystemExit("%s not built in %s" % (stem, build_dir))
+
+
 def tests_exe(build_dir):
-    exe = os.path.join(build_dir, "rr_servo_tests.exe")
-    if os.path.isfile(exe):
-        return exe
-    unix = os.path.join(build_dir, "rr_servo_tests")
-    if os.path.isfile(unix):
-        return unix
-    raise SystemExit("rr_servo_tests not built in %s" % build_dir)
+    return host_exe(build_dir, "rr_servo_tests")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,12 @@ else
   exit 1
 fi
 "$py" "$root/scripts/build_host.py"
+# Dual-boot NTFS may leave a Windows .exe beside the Linux ELF. Prefer native.
+if [[ -x "$root/build/host/rr_servo_tests" ]]; then
+  exec "$root/build/host/rr_servo_tests"
+fi
 if [[ -x "$root/build/host/rr_servo_tests.exe" ]]; then
   exec "$root/build/host/rr_servo_tests.exe"
 fi
-exec "$root/build/host/rr_servo_tests"
+echo "rr_servo_tests not built in $root/build/host"
+exit 1

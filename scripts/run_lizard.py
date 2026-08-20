@@ -9,11 +9,31 @@ from __future__ import print_function
 import os
 import sys
 
-try:
-    import lizard
-except ImportError:
-    sys.stderr.write("lizard not installed (pip install --user lizard)\n")
+def _import_lizard():
+    try:
+        import lizard as mod
+        return mod
+    except ImportError:
+        pass
+    # Ubuntu 24.04 PEP 668 blocks `pip install --user`; pipx is the fallback.
+    pipx_lib = os.path.expanduser("~/.local/share/pipx/venvs/lizard/lib")
+    if os.path.isdir(pipx_lib):
+        for dirpath, dirnames, filenames in os.walk(pipx_lib):
+            if os.path.basename(dirpath) == "site-packages":
+                sys.path.insert(0, dirpath)
+                break
+        try:
+            import lizard as mod
+            return mod
+        except ImportError:
+            pass
+    sys.stderr.write(
+        "lizard not installed (pipx install lizard, or pip install --user lizard)\n"
+    )
     sys.exit(1)
+
+
+lizard = _import_lizard()
 
 CCN_LIMIT = 10
 ROOT_DIRS = ("lib", "sketches", "tests", "host")

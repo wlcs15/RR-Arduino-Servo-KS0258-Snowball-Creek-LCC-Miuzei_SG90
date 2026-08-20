@@ -1,10 +1,17 @@
 // Mega 2560 bring-up: 16 KS0258 channels.
-// DEBUG is off. Rest position 45 deg. At startup all channels sweep
-// 45 -> 135 in ~3 s (Tortoise-like), then 135 -> 45 in ~3 s, then hold 45.
+// Compile with -DDEBUG (or -DRR_DEBUG): hold all channels at 90 deg
+// (1500 us). Extra serial. No 45-135 sweep.
+// DEBUG off: repeating cycle 45 -> 135 -> 45, then return to 90 before
+// starting the cycle again. Idle rest is 90 deg.
 // -DRR_USE_KS0258=0 uses Servo on D44-D46 (three turnouts).
 
+#if defined(DEBUG) || defined(RR_DEBUG)
+#define RR_BRINGUP_DEBUG 1
 #ifdef DEBUG
 #undef DEBUG
+#endif
+#else
+#define RR_BRINGUP_DEBUG 0
 #endif
 
 #include <Wire.h>
@@ -21,9 +28,20 @@ static Adafruit_PWMServoDriver pwm(RR_PCA9685_ADDR);
 static Servo fallbackServo[RR_TURNOUT_COUNT];
 #endif
 
-static const unsigned kRestDeg = 45u;
+static const unsigned kNearDeg = 45u;
+static const unsigned kMidDeg = 90u;
 static const unsigned kFarDeg = 135u;
 static const uint32_t kSweepMs = 3000u;
+static const uint32_t kHalfSweepMs = 1500u;
+static const uint32_t kHoldMidMs = 400u;
+
+enum {
+  kDemoToFar = 0,
+  kDemoToNear,
+  kDemoToMid,
+  kDemoHoldMid,
+  kDemoMidToNear
+};
 
 static LimitLadderConfig ladderCfg = limit_ladder_default_10bit();
 static LimitLadderFilter ladderFilter[RR_TURNOUT_COUNT];
@@ -33,6 +51,16 @@ static int lastAvg[RR_TURNOUT_COUNT];
 static uint32_t lastStatusMs = 0;
 static unsigned selected = 0;
 static uint16_t restUs = (uint16_t)RR_SG90_US_90;
+static uint16_t nearUs = (uint16_t)RR_SG90_US_0;
+static uint16_t midUs = (uint16_t)RR_SG90_US_90;
+static uint16_t farUs = (uint16_t)RR_SG90_US_180;
+static uint16_t holdUs = (uint16_t)RR_SG90_US_90;
+static uint8_t demoPhase = kDemoToFar;
+static uint32_t demoT0 = 0;
+static uint16_t demoFromUs = (uint16_t)RR_SG90_US_90;
+static uint16_t demoToUs = (uint16_t)RR_SG90_US_90;
+static uint32_t demoDurMs = kSweepMs;
+static uint32_t lastSweepPrintMs = 0;
 
 static uint16_t sg90_us_from_deg(unsigned deg) {
   if (deg > 180u) {
@@ -60,21 +88,86 @@ static uint16_t lerp_us(uint16_t fromUs, uint16_t toUs, uint32_t elapsed,
   return (uint16_t)((int32_t)fromUs + (delta * (int32_t)elapsed) / (int32_t)duration);
 }
 
-static void sweep_all(uint16_t fromUs, uint16_t toUs, uint32_t durationMs) {
-  const uint32_t t0 = millis();
-  for (;;) {
-    const uint32_t elapsed = millis() - t0;
-    const uint16_t us = lerp_us(fromUs, toUs, elapsed, durationMs);
-    write_all_us(us);
+#if !RR_BRINGUP_DEBUG
+static void demo_begin_phase(uint8_t phase) {
+  demoPhase = phase;
+  demoT0 = millis();
+  lastSweepPrintMs = 0;
+  if (phase == kDemoToFar) {
+    demoFromUs = nearUs;
+    demoToUs = farUs;
+    demoDurMs = kSweepMs;
+    Serial.println(F("cycle: 45 -> 135 in 3 s"));
+  } else if (phase == kDemoToNear) {
+    demoFromUs = farUs;
+    demoToUs = nearUs;
+    demoDurMs = kSweepMs;
+    Serial.println(F("cycle: 135 -> 45 in 3 s"));
+  } else if (phase == kDemoToMid) {
+    demoFromUs = nearUs;
+    demoToUs = midUs;
+    demoDurMs = kHalfSweepMs;
+    Serial.println(F("cycle: 45 -> 90 in 1.5 s"));
+  } else if (phase == kDemoHoldMid) {
+    demoFromUs = midUs;
+    demoToUs = midUs;
+    demoDurMs = kHoldMidMs;
+    Serial.println(F("cycle: hold 90 deg"));
+    write_all_us(midUs);
+    holdUs = midUs;
+  } else {
+    demoFromUs = midUs;
+    demoToUs = nearUs;
+    demoDurMs = kHalfSweepMs;
+    Serial.println(F("cycle: 90 -> 45 in 1.5 s"));
+  }
+}
+
+static void demo_next_phase(void) {
+  uint8_t next = (uint8_t)(demoPhase + 1u);
+  if (next > kDemoMidToNear) {
+    next = kDemoToFar;
+  }
+  demo_begin_phase(next);
+}
+
+static void demo_tick(uint32_t nowMs) {
+  const uint32_t elapsed = nowMs - demoT0;
+  if (demoPhase == kDemoHoldMid) {
+    write_all_us(midUs);
+    holdUs = midUs;
+    if (elapsed >= demoDurMs) {
+      demo_next_phase();
+    }
+    return;
+  }
+  const uint16_t us = lerp_us(demoFromUs, demoToUs, elapsed, demoDurMs);
+  write_all_us(us);
+  holdUs = us;
+#ifdef HACK
+  if ((lastSweepPrintMs == 0) || ((nowMs - lastSweepPrintMs) >= 15u)) {
+    lastSweepPrintMs = nowMs;
     Serial.print(F("sweep_us="));
     Serial.println(us);
-    if (elapsed >= durationMs) {
-      break;
-    }
-    delay(15);
   }
-  write_all_us(toUs);
+#endif
+  if (elapsed >= demoDurMs) {
+    write_all_us(demoToUs);
+    holdUs = demoToUs;
+    demo_next_phase();
+  }
 }
+
+static bool any_drive_enabled(void) {
+  unsigned i;
+  for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
+    if (turnout[i].drive_enabled()) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
 #endif
 
 static void drive_one(unsigned idx) {
@@ -102,20 +195,43 @@ static void drive_one(unsigned idx) {
 #endif
 }
 
-static void sample_one(unsigned idx, uint32_t nowMs) {
+static void sample_one(unsigned idx, uint32_t nowMs, bool write_pwm) {
   const int pin = rr_limit_pin(idx);
   if (pin < 0) {
     lastRaw[idx] = 1023;
     lastAvg[idx] = 1023;
     turnout[idx].update(nowMs, LIMIT_NEITHER);
-    drive_one(idx);
+    if (write_pwm) {
+      drive_one(idx);
+    }
     return;
   }
   lastRaw[idx] = analogRead(pin);
   lastAvg[idx] = ladderFilter[idx].push(lastRaw[idx]);
   turnout[idx].update(nowMs, limit_ladder_decode(lastAvg[idx], ladderCfg));
-  drive_one(idx);
+  if (write_pwm) {
+    drive_one(idx);
+  }
 }
+
+#if RR_USE_KS0258
+static void startup_pwm() {
+  pwm.begin();
+  pwm.setOscillatorFrequency(27000000);
+  pwm.setPWMFreq(50);
+  delay(10);
+#if RR_BRINGUP_DEBUG
+  Serial.println(F("startup: DEBUG hold 90 deg (1500 us), no sweep"));
+  write_all_us(restUs);
+  holdUs = restUs;
+#else
+  Serial.println(F("startup: hold 45 deg, then repeating cycle"));
+  write_all_us(nearUs);
+  holdUs = nearUs;
+  delay(400);
+#endif
+}
+#endif
 
 static void print_one(unsigned idx) {
   Serial.print(F("ch="));
@@ -128,14 +244,24 @@ static void print_one(unsigned idx) {
   Serial.print(limit_state_name(turnout[idx].last_limit()));
   Serial.print(F(" motion="));
   Serial.print(turnout[idx].motion_name());
+#if RR_BRINGUP_DEBUG
+  Serial.print(F(" fault="));
+  Serial.print(turnout[idx].fault_name());
+#endif
   Serial.print(F(" rest_us="));
   Serial.print(restUs);
+  Serial.print(F(" hold_us="));
+  Serial.print(holdUs);
   Serial.print(F(" us="));
   Serial.println(turnout[idx].pulse_us());
 }
 
 static void help() {
-  Serial.println(F("TurnoutBringup Mega (DEBUG off, rest 45 deg)"));
+#if RR_BRINGUP_DEBUG
+  Serial.println(F("TurnoutBringup Mega (DEBUG on, rest 90 deg)"));
+#else
+  Serial.println(F("TurnoutBringup Mega (DEBUG off, cycle 45-135 then 90)"));
+#endif
   Serial.println(RR_I2C_NOTE);
   Serial.print(F("RR_USE_KS0258="));
   Serial.println(RR_USE_KS0258);
@@ -200,7 +326,11 @@ void setup() {
   while (!Serial && millis() < 2000) {
   }
 
-  restUs = sg90_us_from_deg(kRestDeg);
+  nearUs = sg90_us_from_deg(kNearDeg);
+  midUs = sg90_us_from_deg(kMidDeg);
+  farUs = sg90_us_from_deg(kFarDeg);
+  restUs = midUs;
+  holdUs = restUs;
 
   unsigned i;
   for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
@@ -212,34 +342,32 @@ void setup() {
   }
 
 #if RR_USE_KS0258
-  pwm.begin();
-  pwm.setOscillatorFrequency(27000000);
-  pwm.setPWMFreq(50);
-  delay(10);
-
-  const uint16_t farUs = sg90_us_from_deg(kFarDeg);
-  Serial.println(F("startup: hold 45 deg"));
-  write_all_us(restUs);
-  delay(400);
-  Serial.println(F("startup: 45 -> 135 in 3 s (Tortoise-like)"));
-  sweep_all(restUs, farUs, kSweepMs);
-  delay(300);
-  Serial.println(F("startup: 135 -> 45 in 3 s"));
-  sweep_all(farUs, restUs, kSweepMs);
-  Serial.println(F("startup: hold 45 deg"));
-  write_all_us(restUs);
+  startup_pwm();
 #endif
 
   help();
+#if RR_USE_KS0258 && !RR_BRINGUP_DEBUG
+  demo_begin_phase(kDemoToFar);
+#endif
 }
 
 void loop() {
   const uint32_t now = millis();
   unsigned i;
-  for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
-    sample_one(i, now);
-  }
   handle_serial(now);
+#if RR_USE_KS0258 && !RR_BRINGUP_DEBUG
+  const bool driven = any_drive_enabled();
+  for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
+    sample_one(i, now, driven);
+  }
+  if (!driven) {
+    demo_tick(now);
+  }
+#else
+  for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
+    sample_one(i, now, true);
+  }
+#endif
   if ((now - lastStatusMs) >= 1000u) {
     lastStatusMs = now;
     print_one(selected);
