@@ -6,13 +6,11 @@
 #endif
 
 // Pin map. Mega trunk: Snowball Creek + KS0258.
-// wemos-d1r32: Waveshare RS485 CAN B00XMERZA4 on the headers.
-// New features: #if defined(ARDUINO_ARCH_ESP32) only (Mega flash/SRAM).
-// Unity does not drive PWM. D9/D10 reserved for a later Adafruit 1438.
-// A4/A5 and GPIO21/22 are not a stacked-KS0258 path (A4/A5 input-only;
-// 21/22 = CAN). Ladder on A1 (A0 is GPIO2 boot strap). Node .A5.03.
-// ESP32 onboard PWM (no 1438/KS0258): D3/GPIO25, then D4/GPIO17, D5/GPIO16.
-// Do not use D2/GPIO26 (Waveshare RS485 RX). Override before including.
+// wemos-d1r32: new features #if defined(ARDUINO_ARCH_ESP32) only.
+// CAN shield removed for this node: PCA9685 module on default I2C
+// GPIO21/22 (silk SDA/SCL). 4" TFT uses D3-D13 only — those I2C pins stay.
+// A4/A5 are GPIO36/39 input-only (not I2C). Ladder A1. Node .A5.03.
+// Override before including.
 
 #ifdef ARDUINO_ARCH_ESP32
 #ifndef RR_USE_KS0258
@@ -35,6 +33,12 @@
 #endif
 #ifndef RR_OWLTHREE_NODE_ID
 #define RR_OWLTHREE_NODE_ID 0x05010101A503ULL
+#endif
+#ifndef RR_ESP32_I2C_SDA
+#define RR_ESP32_I2C_SDA 21
+#endif
+#ifndef RR_ESP32_I2C_SCL
+#define RR_ESP32_I2C_SCL 22
 #endif
 #endif
 
@@ -97,7 +101,7 @@
 #define RR_I2C_NOTE "Mega: jumper KS0258 A4->20 and A5->21, then use Wire"
 #elif defined(ARDUINO_ARCH_ESP32)
 #define RR_BOARD_MEGA 0
-#define RR_I2C_NOTE "D1 R32: Servo D10/GPIO5 (1438 #1); analog A1; I2C GPIO21/22"
+#define RR_I2C_NOTE "D1 R32: PCA9685 SDA GPIO21 SCL GPIO22; analog A1; TFT keeps D3-D13"
 #else
 #define RR_BOARD_MEGA 0
 #define RR_I2C_NOTE "Uno/Nano: KS0258 uses A4/A5 hardware I2C"
