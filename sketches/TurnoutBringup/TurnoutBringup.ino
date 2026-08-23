@@ -1,5 +1,6 @@
-// Bring-up sketch. Mega: 16 KS0258 channels. D1 R32 (this branch): one
-// servo on Adafruit 1438 D10 (GPIO5), analog A1. Node 05.01.01.01.A5.03.
+// Bring-up sketch. Mega: 16 KS0258 channels (PCA9685_SDASCL off).
+// D1 R32: same logical KS0258/PCA9685 ch0 on a flying module, analog A1.
+// Node 05.01.01.01.A5.03.
 //
 // DEBUG / RR_DEBUG: hold 90 deg (1500 us), extra serial, no 45-135 sweep.
 // This branch default is DEBUG on. Comment out RR_DEBUG below to restore
@@ -7,12 +8,20 @@
 // HACK: verbose sweep_us= every 15 ms on the DEBUG-off lerp only. Leave
 // undefined; UART flood. Enable with -DHACK while debugging the sweep.
 // LCC_ON / OPTIMIZE_MEMORY: Mega LccTurnoutNode only. Do not set here.
-// RR_USE_KS0258=0: Arduino Servo / ESP32Servo on fallback PWM pins.
+// PCA9685_SDASCL: ESP32 I2C on silk SDA/SCL (GPIO21/22). Mega leaves it off.
 
 #ifndef RR_DEBUG
 #define RR_DEBUG
 #endif
 // #define HACK
+#if defined(ARDUINO_ARCH_ESP32)
+#ifndef PCA9685_SDASCL
+#define PCA9685_SDASCL
+#endif
+#ifndef RR_USE_KS0258
+#define RR_USE_KS0258 1
+#endif
+#endif
 
 #if defined(DEBUG) || defined(RR_DEBUG)
 #define RR_BRINGUP_DEBUG 1
@@ -230,6 +239,14 @@ static void sample_one(unsigned idx, uint32_t nowMs, bool write_pwm) {
 
 #if RR_USE_KS0258
 static void startup_pwm() {
+#ifdef PCA9685_SDASCL
+  Wire.setPins(RR_ESP32_I2C_SDA, RR_ESP32_I2C_SCL);
+  Wire.begin();
+  Serial.print(F("PCA9685_SDASCL SDA="));
+  Serial.print((int)RR_ESP32_I2C_SDA);
+  Serial.print(F(" SCL="));
+  Serial.println((int)RR_ESP32_I2C_SCL);
+#endif
   pwm.begin();
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(50);
@@ -287,6 +304,9 @@ static void help() {
   Serial.println(RR_I2C_NOTE);
   Serial.print(F("RR_USE_KS0258="));
   Serial.println(RR_USE_KS0258);
+#ifdef PCA9685_SDASCL
+  Serial.println(F("PCA9685_SDASCL=1 logical KS0258 ch0"));
+#endif
   Serial.print(F("rest_us="));
   Serial.println(restUs);
   Serial.println(F("n/p  select channel"));

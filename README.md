@@ -100,7 +100,8 @@ Do **not** turn every flag on at once. DEBUG serial fights `LCC_ON`. `HACK` only
 | **HACK** | **OFF** (commented) | DEBUG-off path only: print `sweep_us=` every 15 ms. UART flood. Enable with `-DHACK` while debugging the lerp. `// #define HACK` is left commented in the sketch. |
 | **LCC_ON** | OFF | Mega `LccTurnoutNode`: silence UART. Later memory pass. Opposite of DEBUG. |
 | **OPTIMIZE_MEMORY** | OFF | Mega: `-Os` and smaller CAN FIFOs. Later memory pass. |
-| **RR_USE_KS0258** | **0** on D1 R32 (1 on Mega) | 1 = PCA9685 / KS0258. 0 = Arduino `Servo` / ESP32Servo on fallback PWM pins. |
+| **RR_USE_KS0258** | **1** (KS0258 / PCA9685 ch0) | Same logical PCA9685 as Keyestudio. Mega = shield I2C. ESP32 + **PCA9685_SDASCL** = flying module. |
+| **PCA9685_SDASCL** | **ON** ESP32, **off** Mega | ESP32 `Wire` on silk **SDA/SCL** (GPIO21/22). Mega must not define this. |
 | **RR_CAN_CHIP** | 2518 (Mega only) | `2518` → ACAN2517 / MCP2518 (Snowball Creek Rev 4). Else ACAN2515. ESP32 uses TWAI + OpenMRN later. |
 | **LIBLCC_EVENT_LIST_STATIC_SIZE** | 16 (Mega) | LibLCC static consumed-event table. Not used on ESP32. |
 | **RR_GCOV** | OFF | Mega Unity gcov link. Host coverage is `RR_ENABLE_COVERAGE` + llvm-cov. |
