@@ -5,11 +5,45 @@
 #include <Arduino.h>
 #endif
 
-// Pin map for Snowball Creek LCC shield + KS0258 (Mega trunk).
-// Override any symbol before including this header.
+// Pin map. Mega trunk: Snowball Creek + KS0258.
+// wemos-d1r32: Waveshare RS485 CAN B00XMERZA4 on the headers.
+// New features: #if defined(ARDUINO_ARCH_ESP32) only (Mega flash/SRAM).
+// Unity does not drive PWM. D9/D10 reserved for a later Adafruit 1438.
+// A4/A5 and GPIO21/22 are not a stacked-KS0258 path (A4/A5 input-only;
+// 21/22 = CAN). Ladder on A1 (A0 is GPIO2 boot strap). Node .A5.03.
+// ESP32 onboard PWM (no 1438/KS0258): D3/GPIO25, then D4/GPIO17, D5/GPIO16.
+// Do not use D2/GPIO26 (Waveshare RS485 RX). Override before including.
+
+#ifdef ARDUINO_ARCH_ESP32
+#ifndef RR_USE_KS0258
+#define RR_USE_KS0258 0
+#endif
+#ifndef RR_TURNOUT_COUNT
+#define RR_TURNOUT_COUNT 1
+#endif
+#ifndef RR_LIMIT_PIN_0
+#define RR_LIMIT_PIN_0 A1
+#endif
+#ifndef RR_FALLBACK_PWM_0
+#define RR_FALLBACK_PWM_0 25
+#endif
+#ifndef RR_FALLBACK_PWM_1
+#define RR_FALLBACK_PWM_1 17
+#endif
+#ifndef RR_FALLBACK_PWM_2
+#define RR_FALLBACK_PWM_2 16
+#endif
+#ifndef RR_OWLTHREE_NODE_ID
+#define RR_OWLTHREE_NODE_ID 0x05010101A503ULL
+#endif
+#endif
 
 #ifndef RR_USE_KS0258
 #define RR_USE_KS0258 1
+#endif
+
+#ifndef RR_OWLTHREE_NODE_ID
+#define RR_OWLTHREE_NODE_ID 0x05010101A502ULL
 #endif
 
 #ifndef RR_PCA9685_ADDR
@@ -61,6 +95,9 @@
 #if defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA)
 #define RR_BOARD_MEGA 1
 #define RR_I2C_NOTE "Mega: jumper KS0258 A4->20 and A5->21, then use Wire"
+#elif defined(ARDUINO_ARCH_ESP32)
+#define RR_BOARD_MEGA 0
+#define RR_I2C_NOTE "D1 R32: Servo D10/GPIO5 (1438 #1); analog A1; I2C GPIO21/22"
 #else
 #define RR_BOARD_MEGA 0
 #define RR_I2C_NOTE "Uno/Nano: KS0258 uses A4/A5 hardware I2C"
@@ -71,6 +108,9 @@ inline int rr_limit_pin(unsigned idx) {
 #if RR_BOARD_MEGA
   static const int kPins[16] = {A0,  A1,  A2,  A3,  A6,  A7,  A8,  A9,
                                 A10, A11, A12, A13, A14, A15, -1,  -1};
+#elif defined(ARDUINO_ARCH_ESP32)
+  static const int kPins[16] = {A1, A2, A3, A4, -1, -1, -1, -1,
+                                -1, -1, -1, -1, -1, -1, -1, -1};
 #else
   static const int kPins[16] = {A0, A1, A2, A3, -1, -1, -1, -1,
                                 -1, -1, -1, -1, -1, -1, -1, -1};

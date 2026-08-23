@@ -8,13 +8,13 @@ Arduino Mega 2560 + Keyestudio KS0258 + Snowball Creek LCC shield + Miuzei SG90 
 
 Do not land Wemos, Uno-only, ARM, or Waveshare TFT work on `main`.
 
-## Proposed CPU branches (not created yet)
+## CPU branches
 
-Cut from `main` when that board’s firmware or pin map would break the Mega stack:
+`wemos-d1r32` is cut and fast-forwarded from `main` **v1.02**. `uno-r3` and `arm-arduino` still sit at the old snapshot.
 
 | Branch | Board | Servo drive | LCC |
 | --- | --- | --- | --- |
-| `wemos-d1r32` | Wemos TTgo D1 R32 / ESPDuino-32 | KS0258 shield **or** PCA9685 module | OpenMRNIDF (BSD-2-Clause) |
+| `wemos-d1r32` | Wemos TTgo D1 R32 / ESPDuino-32 | Adafruit 1438 D10/D9 (ESP32Servo). Not KS0258. | OpenMRNIDF later; Waveshare RS485 CAN (TWAI). Node **`.A5.03`** |
 | `uno-r3` | Arduino Uno R3 | KS0258 (A4/A5 I2C; A0–A3 analog only) | Snowball Creek fits; same libLCC-vs-OpenMRN issue as Mega |
 | `arm-arduino` | TBD Arduino-footprint ARM | KS0258 or PCA9685 module | OpenMRN / OpenMRNLite |
 
@@ -34,4 +34,4 @@ Shared motion/ladder code stays on `main` (`lib/rr_servo`) and is merged forward
 
 The Waveshare 4" shield uses D3–D13 (including D7/D8/D9/D10). That overlaps Snowball Creek. A `-tft` node is not an LCC-shield stack. Servos on those branches use a PCA9685 module on I2C, not header PWM.
 
-OwlThree OpenLCB range: **05.01.01.01.A5.00–FF**. Existing D1 R32 display node: `.A5.01`. First servo node: **`.A5.02`**.
+OwlThree OpenLCB range: **05.01.01.01.A5.00–FF**. Display: `.A5.01`. Mega servo node: **`.A5.02`**. This D1 R32 servo node: **`.A5.03`**.

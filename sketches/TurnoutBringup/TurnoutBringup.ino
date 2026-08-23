@@ -1,9 +1,18 @@
-// Mega 2560 bring-up: 16 KS0258 channels.
-// Compile with -DDEBUG (or -DRR_DEBUG): hold all channels at 90 deg
-// (1500 us). Extra serial. No 45-135 sweep.
-// DEBUG off: repeating cycle 45 -> 135 -> 45, then return to 90 before
-// starting the cycle again. Idle rest is 90 deg.
-// -DRR_USE_KS0258=0 uses Servo on D44-D46 (three turnouts).
+// Bring-up sketch. Mega: 16 KS0258 channels. D1 R32 (this branch): one
+// servo on Adafruit 1438 D10 (GPIO5), analog A1. Node 05.01.01.01.A5.03.
+//
+// DEBUG / RR_DEBUG: hold 90 deg (1500 us), extra serial, no 45-135 sweep.
+// This branch default is DEBUG on. Comment out RR_DEBUG below to restore
+// the repeating 45 -> 135 -> 45 -> 90 cycle.
+// HACK: verbose sweep_us= every 15 ms on the DEBUG-off lerp only. Leave
+// undefined; UART flood. Enable with -DHACK while debugging the sweep.
+// LCC_ON / OPTIMIZE_MEMORY: Mega LccTurnoutNode only. Do not set here.
+// RR_USE_KS0258=0: Arduino Servo / ESP32Servo on fallback PWM pins.
+
+#ifndef RR_DEBUG
+#define RR_DEBUG
+#endif
+// #define HACK
 
 #if defined(DEBUG) || defined(RR_DEBUG)
 #define RR_BRINGUP_DEBUG 1
@@ -24,7 +33,11 @@
 #include <Adafruit_PWMServoDriver.h>
 static Adafruit_PWMServoDriver pwm(RR_PCA9685_ADDR);
 #else
+#if defined(ARDUINO_ARCH_ESP32)
+#include <ESP32Servo.h>
+#else
 #include <Servo.h>
+#endif
 static Servo fallbackServo[RR_TURNOUT_COUNT];
 #endif
 
@@ -144,6 +157,7 @@ static void demo_tick(uint32_t nowMs) {
   const uint16_t us = lerp_us(demoFromUs, demoToUs, elapsed, demoDurMs);
   write_all_us(us);
   holdUs = us;
+// HACK: print every lerp tick. Off unless -DHACK. DEBUG-off path only.
 #ifdef HACK
   if ((lastSweepPrintMs == 0) || ((nowMs - lastSweepPrintMs) >= 15u)) {
     lastSweepPrintMs = nowMs;
@@ -257,10 +271,18 @@ static void print_one(unsigned idx) {
 }
 
 static void help() {
+#if defined(ARDUINO_ARCH_ESP32)
+#if RR_BRINGUP_DEBUG
+  Serial.println(F("TurnoutBringup D1 R32 (DEBUG on, rest 90 deg)"));
+#else
+  Serial.println(F("TurnoutBringup D1 R32 (DEBUG off, cycle 45-135 then 90)"));
+#endif
+#else
 #if RR_BRINGUP_DEBUG
   Serial.println(F("TurnoutBringup Mega (DEBUG on, rest 90 deg)"));
 #else
   Serial.println(F("TurnoutBringup Mega (DEBUG off, cycle 45-135 then 90)"));
+#endif
 #endif
   Serial.println(RR_I2C_NOTE);
   Serial.print(F("RR_USE_KS0258="));

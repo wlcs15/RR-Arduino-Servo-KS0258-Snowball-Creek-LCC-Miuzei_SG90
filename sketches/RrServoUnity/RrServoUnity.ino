@@ -1,4 +1,6 @@
-// On-target Unity for Mega 2560. No servo PWM. Same tests as host.
+// On-target Unity. No servo PWM and no CAN. Same eight tests as host.
+// Does not attach D9/D10/SDA/SCL so KS0258, Adafruit 1438, and Waveshare
+// RS485 CAN (B00XMERZA4) headers stay electrically free.
 #ifdef DEBUG
 #undef DEBUG
 #endif
@@ -15,7 +17,11 @@ void setup() {
   while (!Serial && millis() < 4000) {
   }
   delay(200);
+#if defined(ARDUINO_ARCH_ESP32)
+  Serial.println(F("RrServoUnity D1 R32"));
+#else
   Serial.println(F("RrServoUnity Mega 2560"));
+#endif
 #if defined(RR_GCOV)
   Serial.println(F("gcov=on"));
 #endif

@@ -41,13 +41,19 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
-- Other CPUs and TFT: not started (branch names reserved)
+- **This branch (`wemos-d1r32`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Flashed **RrServoUnity** (8/8 on-target, no PWM). Hardware now: D1 R32 + Waveshare RS485 CAN **B00XMERZA4**. OpenMRN not started. Servo shields not fitted; D9/D10/I2C left free.
 
 ## Electrical stacks (keep separate)
 
 **Mega 2560 trunk (5 V):** Snowball Creek + KS0258 + 5 V analog ladder + SG90 on KS0258 **V+**. Safe.
 
-**Wemos D1 R32 (3.3 V GPIO):** no Snowball Creek, no KS0258 shield. Onboard LEDC PWM (first servo **D2 / GPIO26**). Analog **A1** (not A0 — GPIO2 is a boot strap). Ladder pull-up to **3.3 V**. SG90 **power still 5 V**. CAN: **Waveshare RS485 CAN Shield** or another 3.3 V CAN board — not Snowball Creek. Ignore CANADUINO Nano adapters.
+**Wemos D1 R32 (3.3 V GPIO) + Waveshare RS485 CAN Shield (Amazon B00XMERZA4):** correct 3.3 V CAN board for this CPU. Transceiver-only **SN65HVD230** + **MAX3485** RS485. **3.3 V only** — not Snowball Creek, not MCP2515, not LibLCC. CAN TX/RX are **D14/D15** (D1 R32 **GPIO21/22**, the SDA/SCL pads). Ignore RS485 (D7 enable, D8/D2 UART). Ignore CANADUINO Nano adapters.
+
+Servo shields are **not** on the stack yet. Keep **D9/D10** free for Adafruit **1438** hobby servos. Keep **A4/A5** and extra I2C free for a later PCA9685. Analog ladder stays **A1** (A0 is GPIO2 boot strap), 3.3 V pull-up. SG90 power still 5 V, not the ESP32 5 V pin.
+
+**KS0258 3.3 V?** Keyestudio lists logic **3–5 V**, so the PCA9685 *can* run at 3.3 V. The **Arduino-footprint shield** still ties I2C to **A4/A5**. On D1 R32 those are GPIO36/39 (**input-only**), so a stacked KS0258 does **not** talk I2C without jumpers to GPIO21/22 — and those pins are already **Waveshare CAN**. Do not stack KS0258 + B00XMERZA4. A PCA9685 **module** on other GPIOs could work later.
+
+**Adafruit 1438 3.3 V?** Yes (IOREF / 2024 boards use SDA/SCL only). Hobby servos on **D9/D10** do not fight CAN. 1438 **DC/stepper I2C (0x60)** *does* fight CAN on GPIO21/22 — servo headers only if CAN stays stacked.
 
 Do not mix the 5 V Mega shield stack onto the ESP32.
 
@@ -80,13 +86,67 @@ arduino-cli compile --fqbn arduino:avr:mega:cpu=atmega2560 \
 # Optional later: -DLCC_ON (no UART)  -DOPTIMIZE_MEMORY (-Os, smaller CAN FIFOs)
 ```
 
+## ESP32-only features (standing rule)
+
+From 23-Aug-2026, **new features are `#if defined(ARDUINO_ARCH_ESP32)`** (or equivalent) so they do **not** land in Mega 2560 binaries. Mega flash/SRAM stay for the proven KS0258 + Snowball Creek node. Shared `lib/rr_servo` motion/ladder stays portable. OpenMRN, extra diagnostics, Wi-Fi, and extra ESP32 PWM paths stay behind that gate.
+
+## Compile-time flags
+
+Do **not** turn every flag on at once. DEBUG serial fights `LCC_ON`. `HACK` only applies to the DEBUG-off sweep.
+
+| Flag | This branch | Purpose |
+| --- | --- | --- |
+| **DEBUG** / **RR_DEBUG** | **ON** (`#define RR_DEBUG` in `TurnoutBringup`) | Hold **90° / 1500 µs**, extra serial, no 45–135 cycle. Captured as `RR_BRINGUP_DEBUG`, then `DEBUG` is `#undef`’d so Arduino headers do not fight it. Host DEBUG CLI uses the same name. |
+| **HACK** | **OFF** (commented) | DEBUG-off path only: print `sweep_us=` every 15 ms. UART flood. Enable with `-DHACK` while debugging the lerp. `// #define HACK` is left commented in the sketch. |
+| **LCC_ON** | OFF | Mega `LccTurnoutNode`: silence UART. Later memory pass. Opposite of DEBUG. |
+| **OPTIMIZE_MEMORY** | OFF | Mega: `-Os` and smaller CAN FIFOs. Later memory pass. |
+| **RR_USE_KS0258** | **0** on D1 R32 (1 on Mega) | 1 = PCA9685 / KS0258. 0 = Arduino `Servo` / ESP32Servo on fallback PWM pins. |
+| **RR_CAN_CHIP** | 2518 (Mega only) | `2518` → ACAN2517 / MCP2518 (Snowball Creek Rev 4). Else ACAN2515. ESP32 uses TWAI + OpenMRN later. |
+| **LIBLCC_EVENT_LIST_STATIC_SIZE** | 16 (Mega) | LibLCC static consumed-event table. Not used on ESP32. |
+| **RR_GCOV** | OFF | Mega Unity gcov link. Host coverage is `RR_ENABLE_COVERAGE` + llvm-cov. |
+| **RR_ENABLE_COVERAGE** | OFF unless `run_coverage.py` | Host Clang llvm-cov of `lib/rr_servo`. |
+| **RR_LIMIT_PIN_0** | **A1** on ESP32 (A0 on Mega) | Analog ladder. D1 R32 **A0 is GPIO2 (boot strap)**. |
+| **RR_FALLBACK_PWM_0** | **25** (D3/GPIO25) on ESP32; D44 on Mega | ESP32 LEDC with no 1438/KS0258. Next: GPIO17, GPIO16. Not D9/D10 (1438), not D2 (Waveshare RS485 RX). Mega fallback stays D44–D46 (`#else`). |
+| **RR_TURNOUT_COUNT** | 1 on ESP32 first bring-up; 16 with KS0258 | Channel count. |
+| **RR_PCA9685_ADDR** | 0x40 | I2C address if a PCA9685 (KS0258 / 1411 / 815) is used. 1438 motors are 0x60 and are not this path. |
+| **RR_OWLTHREE_NODE_ID** | **05.01.01.01.A5.03** on ESP32 | Mega stays **`.A5.02`**. Display is **`.A5.01`**. |
+
+ESP32 Arduino 3.x has no core `Servo.h`; use Library Manager **ESP32Servo**. FQBN: `esp32:esp32:d1_uno32`.
+
+## Quality baseline (`wemos-d1r32`, 23-Aug-2026)
+
+Host Unity **8/8**. On-target Unity **8/8** on D1 R32 (`sketches/RrServoUnity`, no PWM). Same eight tests as Mega.
+
+lizard (CCN fail at 10; `third_party/` not scanned):
+
+| Module | NLOC | Funcs | Avg CCN | Max CCN | CCN>10 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| host | 51 | 4 | 3.5 | 6 | 0 |
+| lib/rr_servo | 282 | 30 | 2.1 | 5 | 0 |
+| sketches/LccTurnoutNode | 423 | 24 | 3.4 | 8 | 0 |
+| sketches/RrServoUnity | 31 | 5 | 2.0 | 6 | 0 |
+| sketches/TurnoutBringup | 302 | 19 | 3.7 | 9 | 0 |
+| tests | 112 | 12 | 1.6 | 4 | 0 |
+| **TOTAL (our code)** | **1201** | **94** | **2.8** | **9** | **0** |
+
+Host llvm-cov of `lib/rr_servo` (same suite Mega used): **lines 96.83%**, regions 97.14%, branches 93.94%, functions 100%.
+
+On-target coverage **percent** is not available on either CPU:
+
+| Target | What happens |
+| --- | --- |
+| Mega | `--coverage` links avr `libgcov.a`, but `__gcov_dump` is an empty stub; no `.gcda`, no % |
+| ESP32 D1 R32 | `--coverage` **does not link** (`__gcov_init` / `__gcov_dump` / `__gcov_merge_add` undefined). No on-target % |
+
+Compare ESP32 to Mega using the **host** llvm-cov of the same tests, not a target gcov number.
+
 ## CPU branches
 
-`main` stays Mega + KS0258 + Snowball Creek. These branches exist and start at the same commit; firmware for those boards is not started.
+`main` stays Mega + KS0258 + Snowball Creek. **`wemos-d1r32` is this line** (fast-forwarded from v1.02). Do not merge ESP32 pin maps back onto `main`.
 
 | Branch | Hardware |
 | --- | --- |
-| `wemos-d1r32` | Wemos TTgo D1 R32 / ESPDuino-32, KS0258 or PCA9685 module, OpenMRNIDF |
+| `wemos-d1r32` | Wemos TTgo D1 R32 + Waveshare RS485 CAN B00XMERZA4; analog A1; D9/D10 reserved for 1438; OpenMRN later |
 | `uno-r3` | Arduino Uno R3 + KS0258 (few analog channels; Snowball Creek still fits) |
 | `arm-arduino` | TBD Arduino-footprint ARM + KS0258 or PCA9685 module |
 
@@ -156,7 +216,7 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 | **Cyclomatic complexity** | **lizard**, report **per module** (`lib/rr_servo`, each sketch, `tests`, `host`). Arduino `.ino` included. **Fail if any function in our code exceeds 10** (McCabe is per-function; module table is NLOC / function count / avg / max CCN). No fail on `third_party/` or other submodules. Windows: `python scripts/run_lizard.py`. |
 | **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. This target **fails on error-severity only**; warnings are reports. |
 
-Host CMake (C11/C++11, Clang on Ubuntu and Windows 11): `python scripts/build_host.py` or `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Coverage is Clang source-based (`-fprofile-instr-generate -fcoverage-mapping`) plus **llvm-cov** — not gcovr, Ceedling, or MinGW. Usual command: `python scripts/run_coverage.py`. Same tree: `cmake --build build/host-coverage --target coverage`. Report is `lib/rr_servo` only; HTML is `build/host-coverage/coverage/index.html`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). ESP32 firmware is not in this drop.
+Host CMake (C11/C++11, Clang on Ubuntu and Windows 11): `python scripts/build_host.py` or `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Coverage is Clang source-based (`-fprofile-instr-generate -fcoverage-mapping`) plus **llvm-cov** — not gcovr, Ceedling, or MinGW. Usual command: `python scripts/run_coverage.py`. Same tree: `cmake --build build/host-coverage --target coverage`. Report is `lib/rr_servo` only; HTML is `build/host-coverage/coverage/index.html`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). This branch’s ESP32 bring-up is `sketches/TurnoutBringup` with DEBUG on and `RR_USE_KS0258=0`.
 
 ## Design origin
 
