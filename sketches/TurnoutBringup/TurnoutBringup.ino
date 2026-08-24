@@ -3,16 +3,13 @@
 // Node 05.01.01.01.A5.03.
 //
 // DEBUG / RR_DEBUG: hold 90 deg (1500 us), extra serial, no 45-135 sweep.
-// This branch default is DEBUG on. Comment out RR_DEBUG below to restore
-// the repeating 45 -> 135 -> 45 -> 90 cycle.
+// Off for the ESP32 servo power-up cycle. Uncomment RR_DEBUG to hold 90.
 // HACK: verbose sweep_us= every 15 ms on the DEBUG-off lerp only. Leave
 // undefined; UART flood. Enable with -DHACK while debugging the sweep.
 // LCC_ON / OPTIMIZE_MEMORY: Mega LccTurnoutNode only. Do not set here.
 // PCA9685_SDASCL: ESP32 I2C on silk SDA/SCL (GPIO21/22). Mega leaves it off.
 
-#ifndef RR_DEBUG
-#define RR_DEBUG
-#endif
+// #define RR_DEBUG
 // #define HACK
 #if defined(ARDUINO_ARCH_ESP32)
 #ifndef PCA9685_SDASCL
@@ -20,6 +17,9 @@
 #endif
 #ifndef RR_USE_KS0258
 #define RR_USE_KS0258 1
+#endif
+#ifndef RR_LADDER_WIRED
+#define RR_LADDER_WIRED 0
 #endif
 #endif
 
@@ -219,6 +219,15 @@ static void drive_one(unsigned idx) {
 }
 
 static void sample_one(unsigned idx, uint32_t nowMs, bool write_pwm) {
+#if defined(ARDUINO_ARCH_ESP32) && !RR_LADDER_WIRED
+  lastRaw[idx] = 4095;
+  lastAvg[idx] = 4095;
+  turnout[idx].update(nowMs, LIMIT_NEITHER);
+  if (write_pwm) {
+    drive_one(idx);
+  }
+  return;
+#endif
   const int pin = rr_limit_pin(idx);
   if (pin < 0) {
     lastRaw[idx] = 1023;
@@ -321,6 +330,10 @@ static void print_one(unsigned idx) {
   Serial.print(idx);
   Serial.print(F(" adc="));
   Serial.print(lastRaw[idx]);
+#if defined(ARDUINO_ARCH_ESP32)
+  Serial.print(F(" mv="));
+  Serial.print((int)((long)lastRaw[idx] * 3300L / 4095L));
+#endif
   Serial.print(F(" avg="));
   Serial.print(lastAvg[idx]);
   Serial.print(F(" limit="));
@@ -358,6 +371,13 @@ static void help() {
   Serial.println(RR_USE_KS0258);
 #ifdef PCA9685_SDASCL
   Serial.println(F("PCA9685_SDASCL=1 logical KS0258 ch0"));
+#endif
+#if defined(ARDUINO_ARCH_ESP32)
+#if RR_LADDER_WIRED
+  Serial.println(F("analog A1=GPIO4 12-bit; neither~4095 (~3300 mV)"));
+#else
+  Serial.println(F("analog ladder ignored (RR_LADDER_WIRED=0)"));
+#endif
 #endif
   Serial.print(F("rest_us="));
   Serial.println(restUs);
@@ -426,12 +446,21 @@ void setup() {
   restUs = midUs;
   holdUs = restUs;
 
+#if defined(ARDUINO_ARCH_ESP32)
+  analogReadResolution(12);
+  ladderCfg = limit_ladder_scaled(4095);
+#endif
+
   unsigned i;
   for (i = 0; i < (unsigned)RR_TURNOUT_COUNT; ++i) {
     const int pin = rr_limit_pin(i);
+#if defined(ARDUINO_ARCH_ESP32) && !RR_LADDER_WIRED
+    (void)pin;
+#else
     if (pin >= 0) {
       pinMode(pin, INPUT);
     }
+#endif
     turnout[i].set_config(turnout_default_sg90());
   }
 

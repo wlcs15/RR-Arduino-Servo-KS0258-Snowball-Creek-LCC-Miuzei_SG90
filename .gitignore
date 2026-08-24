@@ -86,6 +86,8 @@ __pycache__/
 
 # local secrets / hardware ids (same policy as the D1 R32 OpenMRN node)
 local/
+wifi_secrets.env
+**/wifi_psk_wrap.inc
 
 # Local session resume notes (not for GitHub)
 How-To-Resume.txt

@@ -1,22 +1,41 @@
-# JMRI panels (Mega + Snowball Creek + KS0258)
+# JMRI panels
 
-Canonical copies of the Layout Editor panels used with this node live here.
+Canonical copies of Layout Editor panels live here.
 The live JMRI profile stays in `~/.jmri/` (Linux) or `%USERPROFILE%\.jmri\` (Windows).
 Do not commit the live profile.
 
-Copy a panel into the JMRI railroad folder, then **File → Load**:
+Copy a panel into the JMRI railroad folder, then **File → Load**.
+
+## Mega only (v1.02)
 
 ```text
-~/.jmri/My_JMRI_Railroad.jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml
+docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml
 ```
 
-Node **05.01.01.01.A5.02** (OwlThree). CAN in JMRI is the RR-CirKits gateway
-(STM32 VID 0483:5740 @ 57600), **not** the Mega USB serial.
+CAN in JMRI is the RR-CirKits gateway (STM32 VID 0483:5740 @ 57600), **not** the Mega USB serial.
 
-| Panel turnout | KS0258 | Throw event | Close event |
+| Panel turnout | Node / channel | Throw event | Close event |
 | --- | --- | --- | --- |
-| Left servo KS0258 (TO3) | ch0 | `05.01.01.01.A5.02.00.00` | `05.01.01.01.A5.02.00.01` |
-| Right servo KS0258 (TO4) | ch1 | `05.01.01.01.A5.02.01.00` | `05.01.01.01.A5.02.01.01` |
+| Left servo KS0258 (TO3) | Mega `.A5.02` ch0 | `05.01.01.01.A5.02.00.00` | `05.01.01.01.A5.02.00.01` |
+| Right servo KS0258 (TO4) | Mega `.A5.02` ch1 | `05.01.01.01.A5.02.01.00` | `05.01.01.01.A5.02.01.01` |
 
-Throw/close pulses are still 1000/2000 µs until trimmed. Leave the Mega serial
-monitor closed while clicking (DTR resets the node).
+## Mega + ESP32 loop (v2.02)
+
+```text
+docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml
+```
+
+Oval main (two tracks + end connectors) with a north siding and a south siding.
+Mega is the west pair; ESP32 is the east pair. ESP32 uses OpenLCB over Wi-Fi
+GridConnect (JMRI hub TCP **12021**), not Snowball Creek.
+
+| Panel turnout | Node / channel | Throw event | Close event |
+| --- | --- | --- | --- |
+| Mega KS0258 ch0 (TO3) | `.A5.02` ch0 | `…A5.02.00.00` | `…A5.02.00.01` |
+| Mega KS0258 ch1 (TO4) | `.A5.02` ch1 | `…A5.02.01.00` | `…A5.02.01.01` |
+| ESP32 PCA9685 ch0 (TO5) | `.A5.03` ch0 | `…A5.03.00.00` | `…A5.03.00.01` |
+| ESP32 PCA9685 ch1 (TO6) | `.A5.03` ch1 | `…A5.03.01.00` | `…A5.03.01.01` |
+
+Throw/close pulses are still 1000/2000 µs until trimmed. Leave Mega serial
+closed while clicking (DTR resets the node). ESP32 servo hardware is still
+waiting on a genuine Adafruit PCA9685; the node currently logs throw/close.

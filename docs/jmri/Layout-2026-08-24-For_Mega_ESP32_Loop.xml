@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="/xml/XSLT/panelfile-5-5-5.xsl" type="text/xsl"?>
+<layout-config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://jmri.org/xml/schema/layout-5-5-5.xsd">
+  <jmriversion>
+    <major>5</major>
+    <minor>15</minor>
+    <test>4</test>
+    <modifier />
+  </jmriversion>
+  <turnouts class="jmri.jmrix.openlcb.configurexml.OlcbTurnoutManagerXml">
+    <operations automate="false">
+      <operation name="NoFeedback" class="jmri.configurexml.turnoutoperations.NoFeedbackTurnoutOperationXml" interval="300" maxtries="2" />
+      <operation name="Sensor" class="jmri.configurexml.turnoutoperations.SensorTurnoutOperationXml" interval="300" maxtries="3" />
+    </operations>
+    <defaultclosedspeed>Normal</defaultclosedspeed>
+    <defaultthrownspeed>Restricted</defaultthrownspeed>
+    <turnout feedback="DIRECT" inverted="false" automate="Off">
+      <systemName>MT05.01.01.01.A5.02.00.00;05.01.01.01.A5.02.00.01</systemName>
+      <userName>Mega KS0258 ch0</userName>
+      <comment>Mega + Snowball Creek + KS0258 ch0. Node .A5.02. Throw/close 1000/2000 us until trimmed. CAN via STM32 gateway.</comment>
+    </turnout>
+    <turnout feedback="DIRECT" inverted="false" automate="Off">
+      <systemName>MT05.01.01.01.A5.02.01.00;05.01.01.01.A5.02.01.01</systemName>
+      <userName>Mega KS0258 ch1</userName>
+      <comment>Mega + Snowball Creek + KS0258 ch1. Node .A5.02. Throw/close 1000/2000 us until trimmed.</comment>
+    </turnout>
+    <turnout feedback="DIRECT" inverted="false" automate="Off">
+      <systemName>MT05.01.01.01.A5.03.00.00;05.01.01.01.A5.03.00.01</systemName>
+      <userName>ESP32 PCA9685 ch0</userName>
+      <comment>D1 R32 OpenMRNLite Wi-Fi GridConnect. Node .A5.03 ch0. JMRI hub TCP 12021. Servo PWM after Adafruit PCA9685 V+ is proven.</comment>
+    </turnout>
+    <turnout feedback="DIRECT" inverted="false" automate="Off">
+      <systemName>MT05.01.01.01.A5.03.01.00;05.01.01.01.A5.03.01.01</systemName>
+      <userName>ESP32 PCA9685 ch1</userName>
+      <comment>D1 R32 OpenMRNLite Wi-Fi. Node .A5.03 ch1. Firmware logs the event; servo hardware still pending Adafruit board.</comment>
+    </turnout>
+  </turnouts>
+  <layoutblocks class="jmri.jmrit.display.layoutEditor.configurexml.LayoutBlockManagerXml" />
+  <signalmastlogics class="jmri.managers.configurexml.DefaultSignalMastLogicManagerXml">
+    <logicDelay>500</logicDelay>
+  </signalmastlogics>
+  <LayoutEditor class="jmri.jmrit.display.layoutEditor.configurexml.LayoutEditorXml" name="Mega ESP32 loop two sidings" x="80" y="40" windowheight="520" windowwidth="1100" panelheight="400" panelwidth="1000" sliders="no" scrollable="both" editable="yes" positionable="yes" controlling="yes" animating="yes" showhelpbar="no" drawgrid="yes" snaponadd="yes" snaponmove="yes" antialiasing="no" turnoutcircles="yes" tooltipsnotedit="no" tooltipsinedit="yes" mainlinetrackwidth="4" xscale="1.0" yscale="1.0" sidetrackwidth="2" defaulttrackcolor="darkGray" defaultoccupiedtrackcolor="red" defaultalternativetrackcolor="white" defaulttextcolor="black" turnoutcirclecolor="black" turnoutcirclesize="4" turnoutdrawunselectedleg="yes" turnoutbx="20.0" turnoutcx="20.0" turnoutwid="10.0" xoverlong="30.0" xoverhwid="10.0" xovershort="10.0" autoblkgenerate="no" redBackground="192" greenBackground="192" blueBackground="192" gridSize="10" gridSize2nd="10" openDispatcher="no" useDirectTurnoutControl="no">
+    <layoutTrackDrawingOptions name="Mega ESP32 loop two sidings" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutTrackDrawingOptionsXml">
+      <mainBallastColor>#000000</mainBallastColor>
+      <mainBallastWidth>0</mainBallastWidth>
+      <mainBlockLineDashPercentageX10>0</mainBlockLineDashPercentageX10>
+      <mainBlockLineWidth>4</mainBlockLineWidth>
+      <mainRailColor>#404040</mainRailColor>
+      <mainRailCount>1</mainRailCount>
+      <mainRailGap>0</mainRailGap>
+      <mainRailWidth>2</mainRailWidth>
+      <mainTieColor>#000000</mainTieColor>
+      <mainTieGap>0</mainTieGap>
+      <mainTieLength>0</mainTieLength>
+      <mainTieWidth>0</mainTieWidth>
+      <sideBallastColor>#000000</sideBallastColor>
+      <sideBallastWidth>0</sideBallastWidth>
+      <sideBlockLineDashPercentageX10>0</sideBlockLineDashPercentageX10>
+      <sideBlockLineWidth>2</sideBlockLineWidth>
+      <sideRailColor>#404040</sideRailColor>
+      <sideRailCount>1</sideRailCount>
+      <sideRailGap>0</sideRailGap>
+      <sideRailWidth>1</sideRailWidth>
+      <sideTieColor>#000000</sideTieColor>
+      <sideTieGap>0</sideTieGap>
+      <sideTieLength>0</sideTieLength>
+      <sideTieWidth>0</sideTieWidth>
+    </layoutTrackDrawingOptions>
+    <positionablelabel x="40" y="40" level="4" forcecontroloff="false" hidden="no" positionable="true" showtooltip="true" editable="true" text="Mega .A5.02 CAN" size="14" style="1" red="0" green="0" blue="0" hasBackground="no" justification="left" class="jmri.jmrit.display.configurexml.PositionableLabelXml" />
+    <positionablelabel x="470" y="40" level="4" forcecontroloff="false" hidden="no" positionable="true" showtooltip="true" editable="true" text="ESP32 .A5.03 WiFi" size="14" style="1" red="0" green="0" blue="0" hasBackground="no" justification="left" class="jmri.jmrit.display.configurexml.PositionableLabelXml" />
+    <layoutturnout ident="TO3" type="RH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="80.0" ycen="100.0" xa="60.0" ya="100.0" xb="100.0" yb="100.0" xc="100.0" yc="80.0" xd="60.0" yd="100.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutRHTurnoutXml" turnoutname="Mega KS0258 ch0" connectaname="T1" connectbname="T2" connectcname="T5" />
+    <layoutturnout ident="TO4" type="RH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="80.0" ycen="160.0" xa="60.0" ya="160.0" xb="100.0" yb="160.0" xc="100.0" yc="180.0" xd="60.0" yd="160.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutRHTurnoutXml" turnoutname="Mega KS0258 ch1" connectaname="T1" connectbname="T3" connectcname="T6" />
+    <layoutturnout ident="TO5" type="LH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="520.0" ycen="100.0" xa="540.0" ya="100.0" xb="500.0" yb="100.0" xc="500.0" yc="80.0" xd="540.0" yd="100.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutLHTurnoutXml" turnoutname="ESP32 PCA9685 ch0" connectaname="T4" connectbname="T2" connectcname="T5" />
+    <layoutturnout ident="TO6" type="LH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="520.0" ycen="160.0" xa="540.0" ya="160.0" xb="500.0" yb="160.0" xc="500.0" yc="180.0" xd="540.0" yd="160.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutLHTurnoutXml" turnoutname="ESP32 PCA9685 ch1" connectaname="T4" connectbname="T3" connectcname="T6" />
+    <tracksegment ident="T1" connect1name="TO3" type1="TURNOUT_A" connect2name="TO4" type2="TURNOUT_A" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <tracksegment ident="T2" connect1name="TO3" type1="TURNOUT_B" connect2name="TO5" type2="TURNOUT_B" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <tracksegment ident="T3" connect1name="TO4" type1="TURNOUT_B" connect2name="TO6" type2="TURNOUT_B" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <tracksegment ident="T4" connect1name="TO5" type1="TURNOUT_A" connect2name="TO6" type2="TURNOUT_A" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <tracksegment ident="T5" connect1name="TO3" type1="TURNOUT_C" connect2name="TO5" type2="TURNOUT_C" dashed="no" mainline="no" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <tracksegment ident="T6" connect1name="TO4" type1="TURNOUT_C" connect2name="TO6" type2="TURNOUT_C" dashed="no" mainline="no" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+  </LayoutEditor>
+  <filehistory>
+    <operation>
+      <type>app</type>
+      <date>Mon Aug 24 12:00:00 CDT 2026</date>
+      <filename>Grok CLI (v2.02 panel)</filename>
+    </operation>
+    <operation>
+      <type>Store</type>
+      <date>Mon Aug 24 12:00:00 CDT 2026</date>
+      <filename>docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml</filename>
+    </operation>
+  </filehistory>
+  <!--Written for JMRI 5.15 Layout Editor: Mega .A5.02 + ESP32 .A5.03 loop with two sidings-->
+</layout-config>

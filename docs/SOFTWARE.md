@@ -21,7 +21,9 @@ git submodule update --init --recursive
 - `third_party/Adafruit-PWM-Servo-Driver-Library`
 - `third_party/Adafruit_BusIO`
 
-5 V Arduino LCC uses Snowball Creek’s stack (**LibLCC + ACAN2517 + M95_EEPROM**, Library Manager; Rev 4 is MCP2518). LibLCC is GPL-2.0; that Mega/Uno **binary** is GPL. Do not vendor-copy it into `lib/`. 3.3 V nodes (ESP32) use OpenMRNIDF / OpenMRNLite and a 3.3 V CAN board, not Snowball Creek.
+5 V Arduino LCC uses Snowball Creek’s stack (**LibLCC + ACAN2517 + M95_EEPROM**, Library Manager; Rev 4 is MCP2518). LibLCC is GPL-2.0; that Mega/Uno **binary** is GPL. Do not vendor-copy it into `lib/`. 3.3 V nodes (ESP32) use **OpenMRNLite** (Arduino-ESP32, `RR_WIFI_LCC`) or OpenMRNIDF later. Not Snowball Creek.
+
+ESP32 Wi-Fi PSK uses the same host-encrypt wrap as `Arduino_Wemos_TTgo_D1_R32_ESPDuino-32_Waveshare_4inch_OpenMRN_WiFi`: Grok never sees the password; `scripts/provision_wifi_build.py` is TTY-only.
 
 Install this repo’s library:
 

@@ -34,7 +34,8 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Snowball Creek **Rev 4 MCP2518** (ACAN2517), not MCP2515
   - Node **05.01.01.01.A5.02** (OwlThree; `.A5.01` is the D1 R32 display). Next free **`.A5.03`**
   - Power-up: hold 90° 1 s, one 45→135→45→90 sweep, then hold 90° until LCC
-  - JMRI panel: [docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml](docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml)
+  - JMRI panel (Mega only): [docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml](docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml)
+  - JMRI panel (Mega + ESP32 loop): [docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml](docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml)
     - Left (TO3 / ch0): `…A5.02.00.00` throw / `…A5.02.00.01` close
     - Right (TO4 / ch1): `…A5.02.01.00` throw / `…A5.02.01.01` close
   - Throw/close 1000/2000 µs until pulses are trimmed; command holds (does not snap to 90°)
@@ -111,8 +112,20 @@ Do **not** turn every flag on at once. DEBUG serial fights `LCC_ON`. `HACK` only
 | **RR_TURNOUT_COUNT** | 1 on ESP32 first bring-up; 16 with KS0258 | Channel count. |
 | **RR_PCA9685_ADDR** | 0x40 | I2C address if a PCA9685 (KS0258 / 1411 / 815) is used. 1438 motors are 0x60 and are not this path. |
 | **RR_OWLTHREE_NODE_ID** | **05.01.01.01.A5.03** on ESP32 | Mega stays **`.A5.02`**. Display is **`.A5.01`**. |
+| **RR_WIFI_LCC** | ESP32 `LccWifiTurnoutNode` | OpenMRNLite over Wi-Fi. Mega LibLCC is not used. |
 
 ESP32 Arduino 3.x has no core `Servo.h`; use Library Manager **ESP32Servo**. FQBN: `esp32:esp32:d1_uno32`.
+
+Wi-Fi PSK is **never** in git and **never** typed into Grok (same wrap as the D1 R32 OpenMRN display node). Grok flashes a wrap-free image. You provision from your own terminal:
+
+```text
+python scripts/build_lcc_wifi.py --flash --port COM7
+python scripts/collect_hw_ids.py --port COM7
+python scripts/provision_wifi_build.py
+python scripts/build_lcc_wifi.py --flash --port COM7
+```
+
+SSID **SRIF2333** is public. Do not create `wifi_secrets.env`. Do not pass `--password`.
 
 ## Quality baseline (`wemos-d1r32`, 23-Aug-2026)
 

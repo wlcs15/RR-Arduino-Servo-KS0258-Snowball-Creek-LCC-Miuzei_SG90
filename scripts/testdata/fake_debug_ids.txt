@@ -1,0 +1,6 @@
+LccWifiTurnoutNode RR_WIFI_LCC (OpenMRNLite next)
+==== DEBUG IDs (not the WiFi PSK) ====
+MAC Address: DE:AD:BE:EF:00:01
+OpenLCB Node ID: 05.01.01.01.A5.03
+SPI flash unique ID: 0123456789ABCDEF
+WIFI PASSWORD: NOT SET
