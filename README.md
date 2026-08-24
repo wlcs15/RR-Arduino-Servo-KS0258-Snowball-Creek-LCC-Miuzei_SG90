@@ -203,6 +203,24 @@ Turn it off with `-DRR_USE_KS0258=0` (or a board config). Then drive uses the Ar
 
 Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 11 with LLVM Clang**, `-std=c11` / `-std=c++11`. Host scope: `lib/rr_servo` plus tests and a DEBUG CLI. Sketches stay Arduino-only.
 
+## Required tools
+
+Two scripts check whether the tools needed to **build this project** are installed. They only print; they do not install packages and they never handle a Wi-Fi password. Missing **required** tools are listed with what they are for. Quality tools (lizard, cppcheck, clang-tidy, llvm-cov) print as `WARN` and do not fail the check. Full list and install hints: [docs/REQUIRED_TOOLS.txt](docs/REQUIRED_TOOLS.txt).
+
+Windows 11:
+
+```bat
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_tools.ps1
+```
+
+Ubuntu:
+
+```bash
+./scripts/check_tools.sh
+```
+
+Host: Git, Python 3, CMake 3.10+, LLVM Clang (not MinGW / not `cl.exe`), and Ninja or `nmake` (Windows) / `make` (Linux). Firmware: `arduino-cli` plus cores `arduino:avr` and `esp32:esp32`, and the Library Manager packages in the `.txt`. Then `git submodule update --init --recursive` (Unity).
+
 ## Reserved pins (all Arduino-footprint boards)
 
 Chosen so Snowball Creek, a future Waveshare 4" ILI9486 TFT (SKU 13587), and KS0258-off PWM do not fight. The 4" shield uses **D3–D13** (TP_IRQ, TP_CS, SD_CS, TP_BUSY, LCD_DC, LCD_RST, LCD_BL=D9, LCD_CS=D10, MOSI/MISO/SCK).

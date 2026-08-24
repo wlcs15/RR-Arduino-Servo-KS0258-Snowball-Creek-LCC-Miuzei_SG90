@@ -1,0 +1,83 @@
+Required tools (Windows / Linux)
+================================
+
+Two scripts list whether this tree can be built on the current machine.
+They do not install anything and they never handle a Wi-Fi password.
+
+  Windows 11 cmd / PowerShell:
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_tools.ps1
+
+  Ubuntu / other Linux:
+    ./scripts/check_tools.sh
+
+Exit 0 if every required tool is present. Exit 1 if any required tool is
+missing; the missing names are printed with what they are used for.
+Optional quality tools (lizard, cppcheck, clang-tidy, llvm-cov, OCLint)
+are reported as WARN and do not fail the check.
+
+Not used: MinGW, gcovr, Ceedling. Host C and C++ are C11 / C++11 with
+LLVM Clang. Sketches stay Arduino.
+
+Git submodules must be present (Unity). From the repo root:
+
+  git submodule update --init --recursive
+
+
+Required for host Unity + DEBUG CLI
+-----------------------------------
+  git
+  Python 3 (python on Win11 PATH, python3 on Ubuntu)
+  CMake 3.10+
+  LLVM Clang (clang and clang++) — not MSVC cl, not MinGW gcc
+  A CMake generator:
+    Windows: Ninja, or nmake from Visual Studio Build Tools
+    Linux:   Ninja or Unix make
+
+Host entry: python scripts/build_host.py
+
+
+Required for firmware (this branch)
+-----------------------------------
+  arduino-cli (PATH, or Win11 %USERPROFILE%\ex-installer\arduino-cli\)
+  Arduino AVR core:     arduino:avr          (Mega 2560)
+  Arduino-ESP32 core:   esp32:esp32          (D1 R32, FQBN esp32:esp32:d1_uno32)
+
+Arduino Library Manager (once per PC; not in git):
+  Mega LCC:     LibLCC, ACAN2517, ACAN2515, M95_EEPROM
+  ESP32 Wi-Fi:  OpenMRNLite, ESP32Servo
+
+  arduino-cli core install arduino:avr
+  arduino-cli core install esp32:esp32
+  arduino-cli lib install LibLCC ACAN2517 ACAN2515 M95_EEPROM OpenMRNLite ESP32Servo
+
+
+Optional (quality / coverage / serial / wrap)
+---------------------------------------------
+  llvm-profdata + llvm-cov     python scripts/run_coverage.py
+  lizard                       python scripts/run_lizard.py
+                               (pipx install lizard, or pip install lizard)
+  cppcheck                     scripts/run_cppcheck.sh
+  clang-tidy                   scripts/run_clang_tidy.sh
+  oclint                       Linux only; skipped on Windows
+  Python cryptography          host Wi-Fi wrap (AES-256-GCM)
+  Python pyserial              scripts/collect_hw_ids.py --port
+
+
+Typical install (Ubuntu)
+------------------------
+  sudo apt install git python3 cmake clang llvm clang-tidy cppcheck \
+    ninja-build python3-cryptography python3-serial python3-pip
+  pipx install lizard
+  # arduino-cli: https://arduino.github.io/arduino-cli/latest/installation/
+
+
+Typical install (Windows 11)
+----------------------------
+  Git for Windows
+  Python 3 from python.org or scoop (tick "Add python.exe to PATH")
+  CMake (add C:\Program Files\CMake\bin to PATH)
+  LLVM https://github.com/llvm/llvm-project/releases
+    (add C:\Program Files\LLVM\bin to PATH)
+  Ninja, or Visual Studio Build Tools (nmake). Not MinGW.
+  Arduino CLI or Arduino IDE
+  pip install lizard cryptography pyserial
