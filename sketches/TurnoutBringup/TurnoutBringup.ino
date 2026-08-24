@@ -238,6 +238,50 @@ static void sample_one(unsigned idx, uint32_t nowMs, bool write_pwm) {
 }
 
 #if RR_USE_KS0258
+#ifdef PCA9685_SDASCL
+static uint8_t pca9685_try_read(uint8_t addr, uint8_t reg) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  if (Wire.endTransmission() != 0) {
+    return 0xFFu;
+  }
+  if (Wire.requestFrom((int)addr, 1) < 1) {
+    return 0xFFu;
+  }
+  return (uint8_t)Wire.read();
+}
+
+static void pca9685_print_regs(const char *tag) {
+  Serial.print(tag);
+  Serial.print(F(" MODE1=0x"));
+  Serial.print(pca9685_try_read(RR_PCA9685_ADDR, 0x00), HEX);
+  Serial.print(F(" MODE2=0x"));
+  Serial.print(pca9685_try_read(RR_PCA9685_ADDR, 0x01), HEX);
+  Serial.print(F(" PRESCALE=0x"));
+  Serial.println(pca9685_try_read(RR_PCA9685_ADDR, 0xFE), HEX);
+}
+
+static void pca9685_bus_debug(void) {
+  uint8_t addr;
+  unsigned n = 0;
+  Serial.println(F("I2C scan 0x08-0x77 (PCA9685=0x40, allcall=0x70):"));
+  for (addr = 0x08u; addr < 0x78u; ++addr) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.print(F("  ack=0x"));
+      Serial.println(addr, HEX);
+      n++;
+    }
+  }
+  Serial.print(F("i2c_found="));
+  Serial.println(n);
+  if (n == 0u) {
+    Serial.println(F("I2C none. Idle SDA/SCL should be ~3.3V not 1.5V."));
+  }
+  pca9685_print_regs("pre");
+}
+#endif
+
 static void startup_pwm() {
 #ifdef PCA9685_SDASCL
   Wire.setPins(RR_ESP32_I2C_SDA, RR_ESP32_I2C_SCL);
@@ -246,8 +290,16 @@ static void startup_pwm() {
   Serial.print((int)RR_ESP32_I2C_SDA);
   Serial.print(F(" SCL="));
   Serial.println((int)RR_ESP32_I2C_SCL);
+  pca9685_bus_debug();
 #endif
-  pwm.begin();
+  {
+    const bool ok = pwm.begin();
+    Serial.print(F("pwm.begin="));
+    Serial.println(ok ? F("ok") : F("FAIL"));
+  }
+#ifdef PCA9685_SDASCL
+  pca9685_print_regs("post");
+#endif
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(50);
   delay(10);
