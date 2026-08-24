@@ -4,6 +4,9 @@
 Never prompts. Never reads a Wi-Fi password. If wifi_psk_wrap.inc already
 exists (written by provision_wifi_build.py in YOUR terminal), bakes the
 ciphertext with -DWIFI_WRAP_BLOB_PRESENT=1.
+
+Always runs arduino-cli -v so each source file and each flash block prints.
+Use: python -u scripts/build_lcc_wifi.py --flash --port COM7
 """
 
 from __future__ import print_function
@@ -12,6 +15,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKETCH = os.path.join(ROOT, "sketches", "LccWifiTurnoutNode")
@@ -43,6 +47,22 @@ def extra_flags():
     return flags
 
 
+def run_logged(cmd, title):
+    """Run cmd with inherited stdout/stderr so gcc and esptool stream live."""
+    print("")
+    print("=== %s ===" % title)
+    print(" ".join(cmd))
+    print("OpenMRN first compile can take several minutes; -v prints each file.")
+    sys.stdout.flush()
+    sys.stderr.flush()
+    t0 = time.time()
+    rc = subprocess.call(cmd, cwd=ROOT)
+    dt = time.time() - t0
+    print("=== %s finished in %.1f s (exit %d) ===" % (title, dt, rc))
+    sys.stdout.flush()
+    return rc
+
+
 def main():
     if os.environ.get("WIFI_PASSWORD"):
         sys.stderr.write(
@@ -55,8 +75,9 @@ def main():
     args = parser.parse_args()
     cli = find_cli()
     flags = extra_flags()
-    cmd = [
+    compile_cmd = [
         cli,
+        "-v",
         "compile",
         "--fqbn",
         FQBN,
@@ -68,14 +89,21 @@ def main():
         "compiler.c.extra_flags=" + flags,
         SKETCH,
     ]
-    print(" ".join(cmd))
-    rc = subprocess.call(cmd, cwd=ROOT)
+    rc = run_logged(compile_cmd, "compile LccWifiTurnoutNode")
     if rc != 0:
         return rc
     if args.flash:
-        up = [cli, "upload", "--fqbn", FQBN, "-p", args.port, SKETCH]
-        print(" ".join(up))
-        return subprocess.call(up, cwd=ROOT)
+        up = [
+            cli,
+            "-v",
+            "upload",
+            "--fqbn",
+            FQBN,
+            "-p",
+            args.port,
+            SKETCH,
+        ]
+        return run_logged(up, "upload %s" % args.port)
     return 0
 
 

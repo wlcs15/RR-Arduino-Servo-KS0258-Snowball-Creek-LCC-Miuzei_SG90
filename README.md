@@ -119,11 +119,13 @@ ESP32 Arduino 3.x has no core `Servo.h`; use Library Manager **ESP32Servo**. FQB
 Wi-Fi PSK is **never** in git and **never** typed into Grok (same wrap as the D1 R32 OpenMRN display node). Grok flashes a wrap-free image. You provision from your own terminal:
 
 ```text
-python scripts/build_lcc_wifi.py --flash --port COM7
-python scripts/collect_hw_ids.py --port COM7
-python scripts/provision_wifi_build.py
-python scripts/build_lcc_wifi.py --flash --port COM7
+python -u scripts/build_lcc_wifi.py --flash --port COM7
+python -u scripts/collect_hw_ids.py --port COM7
+python -u scripts/provision_wifi_build.py
+python -u scripts/build_lcc_wifi.py --flash --port COM7
 ```
+
+`build_lcc_wifi.py` always passes `-v` to arduino-cli so each `.cpp` and each esptool block prints. First OpenMRN compile can take several minutes; lack of `-v` used to look hung.
 
 SSID **SRIF2333** is public. Do not create `wifi_secrets.env`. Do not pass `--password`.
 

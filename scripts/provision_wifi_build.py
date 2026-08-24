@@ -112,12 +112,13 @@ def main():
 
     print("Host wrap written.")
     if flash:
-        cmd = [sys.executable, BUILD_PY, "--flash"]
+        cmd = [sys.executable, "-u", BUILD_PY, "--flash"]
         if port:
             cmd.extend(["--port", port])
-        print("Building firmware (no PSK in the environment).")
+        print("Building firmware (no PSK in the environment). Verbose compile/flash.")
         raise SystemExit(subprocess.call(cmd, cwd=ROOT, env=env))
-    print("Run: python scripts/build_lcc_wifi.py [--flash --port COM7]")
+    print("Run in cmd:")
+    print("  python -u scripts\\build_lcc_wifi.py --flash --port COM7")
 
 
 if __name__ == "__main__":
