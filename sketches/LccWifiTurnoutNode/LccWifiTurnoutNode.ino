@@ -29,6 +29,8 @@
 #include "openlcb/CallbackEventHandler.hxx"
 
 #include <BoardPins.h>
+#include "WifiHubPick.h"
+#include "WifiStaBind.h"
 #include "config.h"
 #include "wifi_cred.h"
 
@@ -41,7 +43,10 @@ static char wifi_psk[65];
 OpenMRN openmrn(NODE_ID);
 string dummystring("abcdef");
 static constexpr openlcb::ConfigDef cfg(0);
-Esp32WiFiManager wifi_mgr(wifi_ssid, wifi_psk, openmrn.stack(), cfg.seg().wifi());
+// Esp32WiFiManager copies SSID/PSK into std::string in its constructor.
+// A file-scope instance would copy the empty wifi_psk[] before setup()
+// unwraps NVS, then join WPA2 with no password (ESP-IDF reason 210).
+static Esp32WiFiManager *wifi_mgr = NULL;
 
 static uint64_t evt_throw(unsigned ch) {
   return kEventBase + ((uint64_t)ch << 8);
@@ -74,8 +79,11 @@ class FactoryResetHelper : public DefaultConfigUpdateListener {
   UpdateAction apply_configuration(int fd, bool initial_load,
                                    BarrierNotifiable *done) OVERRIDE {
     AutoNotify n(done);
-    (void)fd;
-    (void)initial_load;
+    if (initial_load) {
+      cfg.seg().wifi().sleep().write(fd, 0);
+      cfg.seg().wifi().uplink().last_address().ip_address().write(fd, "");
+      cfg.seg().wifi().uplink().reconnect().write(fd, 0);
+    }
     return UPDATED;
   }
 
@@ -129,11 +137,27 @@ static void load_wifi_creds(void) {
     Serial.println(F("WIFI PASSWORD: SET (NOT SHOWN)"));
     Serial.print(F("SSID "));
     Serial.println(wifi_ssid);
+    Serial.print(F("WIFI PSK chars: "));
+    Serial.println((unsigned)strlen(wifi_psk));
   } else if (err == ESP_ERR_NOT_FOUND) {
     Serial.println(F("WIFI PASSWORD: NOT SET"));
   } else {
     Serial.println(F("WIFI PASSWORD: UNWRAP FAIL"));
   }
+}
+
+static void start_wifi_manager(void) {
+  WifiStaBind bind;
+  wifi_sta_bind_copy(&bind, wifi_ssid, wifi_psk);
+  memset(wifi_psk, 0, sizeof(wifi_psk));
+  if (!wifi_sta_bind_wpa2_ready(&bind)) {
+    Serial.println(F("WiFi manager not started (no PSK)"));
+    wifi_sta_bind_clear(&bind);
+    return;
+  }
+  wifi_mgr = new Esp32WiFiManager(bind.ssid, bind.psk, openmrn.stack(),
+                                  cfg.seg().wifi());
+  wifi_sta_bind_clear(&bind);
 }
 
 static bool mount_spiffs(void) {
@@ -162,6 +186,8 @@ void setup() {
   while (!Serial && millis() < 2000) {
   }
   Serial.println(F("LccWifiTurnoutNode RR_WIFI_LCC OpenMRNLite GridConnect"));
+  Serial.print(F("firmware "));
+  Serial.println(F(RR_GIT_VERSION_STR(RR_GIT_VERSION)));
   nvs_flash_init();
   print_debug_ids();
   load_wifi_creds();
@@ -169,6 +195,7 @@ void setup() {
     Serial.println(F("SPIFFS failed"));
     return;
   }
+  start_wifi_manager();
   start_openmrn();
 }
 

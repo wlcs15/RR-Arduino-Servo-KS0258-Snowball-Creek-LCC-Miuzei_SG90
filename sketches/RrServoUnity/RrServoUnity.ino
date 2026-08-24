@@ -1,4 +1,4 @@
-// On-target Unity. No servo PWM and no CAN. Same eight tests as host.
+// On-target Unity. No servo PWM and no CAN. Same tests as host.
 // Does not attach D9/D10/SDA/SCL so KS0258, Adafruit 1438, and Waveshare
 // RS485 CAN (B00XMERZA4) headers stay electrically free.
 #ifdef DEBUG

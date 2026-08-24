@@ -4,12 +4,14 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
+#include "GitVersion.h"
 
 namespace openlcb
 {
 
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4, "OwlThree", "RR Servo D1 R32 (WiFi)", "D1R32", "0.1"};
+    4, "OwlThree", "RR Servo D1 R32 (WiFi)", "D1R32",
+    RR_GIT_VERSION_STR(RR_GIT_VERSION)};
 
 static constexpr uint16_t CANONICAL_VERSION = 0x2001;
 

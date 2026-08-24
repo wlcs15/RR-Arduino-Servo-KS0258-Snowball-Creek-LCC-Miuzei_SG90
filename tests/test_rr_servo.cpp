@@ -1,5 +1,8 @@
 #include "LimitLadder.h"
 #include "TurnoutChannel.h"
+#include "WifiStaBind.h"
+#include "WifiHubPick.h"
+#include "GitVersion.h"
 #include "unity.h"
 
 static void test_ladder_bands(void) {
@@ -105,6 +108,136 @@ static void test_turnout_names_config_and_none(void) {
   TEST_ASSERT_EQUAL(1, ch.drive_enabled() ? 1 : 0);
 }
 
+static void test_wifi_sta_bind_empty_psk_not_wpa2_ready(void) {
+  char live_ssid[33] = "SRIF2333";
+  char live_psk[65];
+  WifiStaBind bind;
+  live_psk[0] = '\0';
+  wifi_sta_bind_copy(&bind, live_ssid, live_psk);
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_PSK, wifi_sta_bind_status(&bind));
+  TEST_ASSERT_EQUAL(0, wifi_sta_bind_wpa2_ready(&bind));
+}
+
+static void test_wifi_sta_bind_copy_ignores_later_unwrap(void) {
+  char live_ssid[33] = "SRIF2333";
+  char live_psk[65];
+  WifiStaBind bind;
+  live_psk[0] = '\0';
+  wifi_sta_bind_copy(&bind, live_ssid, live_psk);
+  strncpy(live_psk, "unit-test-psk-18ch", sizeof(live_psk) - 1);
+  live_psk[sizeof(live_psk) - 1] = '\0';
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_PSK, wifi_sta_bind_status(&bind));
+  TEST_ASSERT_EQUAL(0, wifi_sta_bind_wpa2_ready(&bind));
+  TEST_ASSERT_EQUAL('\0', bind.psk[0]);
+  wifi_sta_bind_copy(&bind, live_ssid, live_psk);
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_OK, wifi_sta_bind_status(&bind));
+  TEST_ASSERT_EQUAL(1, wifi_sta_bind_wpa2_ready(&bind));
+  TEST_ASSERT_EQUAL_STRING("unit-test-psk-18ch", bind.psk);
+  wifi_sta_bind_clear(&bind);
+  TEST_ASSERT_EQUAL('\0', bind.psk[0]);
+}
+
+static void test_wifi_hub_skips_loopback_linklocal_self(void) {
+  const uint32_t sta = wifi_hub_ipv4_octets(192, 168, 1, 233);
+  const uint32_t mask = wifi_hub_ipv4_octets(255, 255, 255, 0);
+  TEST_ASSERT_EQUAL(WIFI_HUB_RANK_SKIP,
+                    wifi_hub_ipv4_rank(sta, mask, wifi_hub_ipv4_octets(127, 0, 0, 1)));
+  TEST_ASSERT_EQUAL(WIFI_HUB_RANK_SKIP,
+                    wifi_hub_ipv4_rank(sta, mask, wifi_hub_ipv4_octets(169, 254, 1, 1)));
+  TEST_ASSERT_EQUAL(WIFI_HUB_RANK_SKIP,
+                    wifi_hub_ipv4_rank(sta, mask, wifi_hub_ipv4_octets(224, 0, 0, 251)));
+  TEST_ASSERT_EQUAL(WIFI_HUB_RANK_SKIP, wifi_hub_ipv4_rank(sta, mask, sta));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_usable(0));
+}
+
+static void test_wifi_hub_prefers_same_subnet_keeps_mdns_order(void) {
+  const uint32_t sta = wifi_hub_ipv4_octets(192, 168, 1, 233);
+  const uint32_t mask = wifi_hub_ipv4_octets(255, 255, 255, 0);
+  uint32_t cands[5];
+  int order[5];
+  int n;
+  cands[0] = wifi_hub_ipv4_octets(127, 0, 0, 1);
+  cands[1] = wifi_hub_ipv4_octets(192, 168, 1, 82);
+  cands[2] = wifi_hub_ipv4_octets(10, 0, 0, 1);
+  cands[3] = wifi_hub_ipv4_octets(192, 168, 1, 57);
+  cands[4] = sta;
+  n = wifi_hub_order_indices(sta, mask, cands, 5, order, 5);
+  TEST_ASSERT_EQUAL(3, n);
+  TEST_ASSERT_EQUAL(1, order[0]);
+  TEST_ASSERT_EQUAL(3, order[1]);
+  TEST_ASSERT_EQUAL(2, order[2]);
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_rank(sta, mask, cands[1]));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_rank(sta, mask, cands[3]));
+  TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_rank(sta, mask, cands[2]));
+}
+
+static void test_wifi_hub_keeps_both_dual_home_ipv4s(void) {
+  const uint32_t sta = wifi_hub_ipv4_octets(192, 168, 1, 233);
+  const uint32_t mask = wifi_hub_ipv4_octets(255, 255, 255, 0);
+  uint32_t cands[2];
+  int order[2];
+  int n;
+  cands[0] = wifi_hub_ipv4_octets(192, 168, 1, 57);
+  cands[1] = wifi_hub_ipv4_octets(192, 168, 1, 82);
+  n = wifi_hub_order_indices(sta, mask, cands, 2, order, 2);
+  TEST_ASSERT_EQUAL(2, n);
+  TEST_ASSERT_EQUAL(0, order[0]);
+  TEST_ASSERT_EQUAL(1, order[1]);
+  cands[0] = wifi_hub_ipv4_octets(192, 168, 1, 82);
+  cands[1] = wifi_hub_ipv4_octets(192, 168, 1, 57);
+  n = wifi_hub_order_indices(sta, mask, cands, 2, order, 2);
+  TEST_ASSERT_EQUAL(2, n);
+  TEST_ASSERT_EQUAL(0, order[0]);
+  TEST_ASSERT_EQUAL(1, order[1]);
+}
+
+static void test_wifi_hub_parse_rejects_garbage(void) {
+  uint32_t ip = 99;
+  uint32_t cands[2];
+  int order[2];
+  const uint32_t sta = wifi_hub_ipv4_octets(192, 168, 1, 233);
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse(NULL, &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("192.168.1.57", NULL));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("not-an-ip", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("999.1.1.1", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.999.1.1", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.1.999.1", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.1.1.999", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("127.0.0.1", &ip));
+  TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_parse("192.168.1.57", &ip));
+  TEST_ASSERT_EQUAL(wifi_hub_ipv4_octets(192, 168, 1, 57), ip);
+  TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_usable(wifi_hub_ipv4_octets(169, 253, 0, 1)));
+  TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_rank(sta, 0, ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_order_indices(ip, 0, NULL, 0, NULL, 0));
+  TEST_ASSERT_EQUAL(0, wifi_hub_order_indices(sta, 0, cands, 2, NULL, 2));
+  TEST_ASSERT_EQUAL(0, wifi_hub_order_indices(sta, 0, cands, 2, order, 0));
+  TEST_ASSERT_EQUAL(0, wifi_hub_order_indices(sta, 0, cands, -1, order, 2));
+  cands[0] = wifi_hub_ipv4_octets(192, 168, 1, 82);
+  cands[1] = wifi_hub_ipv4_octets(192, 168, 1, 57);
+  TEST_ASSERT_EQUAL(1, wifi_hub_order_indices(sta, wifi_hub_ipv4_octets(255, 255, 255, 0),
+                                             cands, 2, order, 1));
+  TEST_ASSERT_EQUAL(0, order[0]);
+}
+
+static void test_git_version_fallback_default(void) {
+  TEST_ASSERT_EQUAL_STRING("v0.01+", RR_GIT_VERSION_STR(RR_GIT_VERSION));
+}
+
+static void test_wifi_sta_bind_null_and_empty_ssid(void) {
+  WifiStaBind bind;
+  wifi_sta_bind_clear(NULL);
+  wifi_sta_bind_copy(NULL, "SRIF2333", "unit-test-psk-18ch");
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_SSID, wifi_sta_bind_status(NULL));
+  TEST_ASSERT_EQUAL(0, wifi_sta_bind_wpa2_ready(NULL));
+  wifi_sta_bind_copy(&bind, NULL, "unit-test-psk-18ch");
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_SSID, wifi_sta_bind_status(&bind));
+  wifi_sta_bind_copy(&bind, "", "unit-test-psk-18ch");
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_SSID, wifi_sta_bind_status(&bind));
+  wifi_sta_bind_copy(&bind, "SRIF2333", NULL);
+  TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_PSK, wifi_sta_bind_status(&bind));
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -118,6 +251,14 @@ int rr_servo_run_unity_tests(void) {
   RUN_TEST(test_limit_state_names);
   RUN_TEST(test_filter_window_and_reset);
   RUN_TEST(test_turnout_names_config_and_none);
+  RUN_TEST(test_git_version_fallback_default);
+  RUN_TEST(test_wifi_sta_bind_empty_psk_not_wpa2_ready);
+  RUN_TEST(test_wifi_sta_bind_copy_ignores_later_unwrap);
+  RUN_TEST(test_wifi_sta_bind_null_and_empty_ssid);
+  RUN_TEST(test_wifi_hub_skips_loopback_linklocal_self);
+  RUN_TEST(test_wifi_hub_prefers_same_subnet_keeps_mdns_order);
+  RUN_TEST(test_wifi_hub_keeps_both_dual_home_ipv4s);
+  RUN_TEST(test_wifi_hub_parse_rejects_garbage);
   return UNITY_END();
 }
 

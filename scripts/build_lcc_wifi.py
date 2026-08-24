@@ -17,6 +17,9 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import git_version  # pylint: disable=wrong-import-position
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKETCH = os.path.join(ROOT, "sketches", "LccWifiTurnoutNode")
 WRAP = os.path.join(SKETCH, "wifi_psk_wrap.inc")
@@ -38,7 +41,10 @@ def find_cli():
 
 
 def extra_flags():
-    flags = "-DRR_WIFI_LCC=1"
+    ver = git_version.sanitize_cflag(git_version.read_repo_version(ROOT))
+    # Token, not a quoted string: config.h stringizes RR_GIT_VERSION for SNIP.
+    flags = "-DRR_WIFI_LCC=1 -DRR_GIT_VERSION=%s" % ver
+    print("SNIP softwareVersion %s" % ver)
     if os.path.isfile(WRAP):
         flags += " -DWIFI_WRAP_BLOB_PRESENT=1"
         print("baking existing wrap ciphertext (file is gitignored; not a password)")

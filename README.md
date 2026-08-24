@@ -28,7 +28,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
 
 ## Status
 
-- Portable ladder + motion: `lib/rr_servo` (host Unity 8/8, llvm-cov **96.83%** lines)
+- Portable ladder + motion: `lib/rr_servo` (host Unity **16/16**, llvm-cov **97.88%** lines)
 - Mega serial bring-up: `sketches/TurnoutBringup` (DEBUG-off 45–135–90 cycle)
 - Mega **KS0258 ch0 + ch1** proven with JMRI (**v1.02**): `sketches/LccTurnoutNode`
   - Snowball Creek **Rev 4 MCP2518** (ACAN2517), not MCP2515
@@ -42,7 +42,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
-- **This branch (`wemos-d1r32`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Flashed **RrServoUnity** (8/8 on-target, no PWM). Hardware now: D1 R32 + Waveshare RS485 CAN **B00XMERZA4**. OpenMRN not started. Servo shields not fitted; D9/D10/I2C left free.
+- **This branch (`wemos-d1r32`, tag `v2.05`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.05` clean, `v2.05+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` still aborts, so the node does **not** yet list in LCC Pro. Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image.
 
 ## Electrical stacks (keep separate)
 
@@ -129,23 +129,24 @@ python -u scripts/build_lcc_wifi.py --flash --port COM7
 
 SSID **SRIF2333** is public. Do not create `wifi_secrets.env`. Do not pass `--password`.
 
-## Quality baseline (`wemos-d1r32`, 23-Aug-2026)
+## Quality baseline (`wemos-d1r32`, **v2.05**, 24-Aug-2026)
 
-Host Unity **8/8**. On-target Unity **8/8** on D1 R32 (`sketches/RrServoUnity`, no PWM). Same eight tests as Mega.
+Host Unity **16/16** (`scripts/run_tests.sh` also runs `git_version.py --selftest`). On-target Unity is the same suite; do **not** flash it over `LccWifiTurnoutNode`.
 
 lizard (CCN fail at 10; `third_party/` not scanned):
 
 | Module | NLOC | Funcs | Avg CCN | Max CCN | CCN>10 |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | host | 51 | 4 | 3.5 | 6 | 0 |
-| lib/rr_servo | 282 | 30 | 2.1 | 5 | 0 |
+| lib/rr_servo | 396 | 39 | 2.7 | 9 | 0 |
 | sketches/LccTurnoutNode | 423 | 24 | 3.4 | 8 | 0 |
+| sketches/LccWifiTurnoutNode | 467 | 28 | 3.1 | 8 | 0 |
 | sketches/RrServoUnity | 31 | 5 | 2.0 | 6 | 0 |
-| sketches/TurnoutBringup | 302 | 19 | 3.7 | 9 | 0 |
-| tests | 112 | 12 | 1.6 | 4 | 0 |
-| **TOTAL (our code)** | **1201** | **94** | **2.8** | **9** | **0** |
+| sketches/TurnoutBringup | 368 | 22 | 4.1 | 9 | 0 |
+| tests | 245 | 20 | 1.4 | 4 | 0 |
+| **TOTAL (our code)** | **1981** | **142** | **2.9** | **9** | **0** |
 
-Host llvm-cov of `lib/rr_servo` (same suite Mega used): **lines 96.83%**, regions 97.14%, branches 93.94%, functions 100%.
+Host llvm-cov of `lib/rr_servo`: **lines 97.88%**, regions 98.48%, branches 96.97%, functions 100% (was 96.83 / 97.14 / 93.94 / 100 at the 23-Aug baseline).
 
 On-target coverage **percent** is not available on either CPU:
 
