@@ -42,7 +42,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
-- **This branch (`wemos-d1r32`, tag `v2.05`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.05` clean, `v2.05+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` still aborts, so the node does **not** yet list in LCC Pro. Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image.
+- **This branch (`wemos-d1r32`, tag `v2.06`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.05` clean, `v2.05+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` still aborts, so the node does **not** yet list in LCC Pro. Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image.
 
 ## Electrical stacks (keep separate)
 
@@ -82,9 +82,37 @@ OpenLCB / LCC (5 V Mega trunk): Snowball Creek + Library Manager **LibLCC + ACAN
 arduino-cli compile --fqbn arduino:avr:mega:cpu=atmega2560 \
   --library lib/rr_servo --library third_party/Adafruit-PWM-Servo-Driver-Library \
   --library third_party/Adafruit_BusIO sketches/LccTurnoutNode
-# Linux Mega is VID 2341:0042 (often /dev/ttyACM0). Win11 was COM5.
-# Leave the serial monitor closed during JMRI clicks (DTR resets the node).
+# Linux Mega is VID 2341:0042 (tty number swaps). Win11 was COM5.
+# Leave the Mega serial monitor closed during JMRI clicks (DTR resets the node).
 # Optional later: -DLCC_ON (no UART)  -DOPTIMIZE_MEMORY (-Os, smaller CAN FIFOs)
+```
+
+**USB vs JMRI (ACM/USB numbers swap; identify by VID:PID):**
+
+The **RR-CirKits LCC Buffer / LCC–LocoNet gateway** is the STM32 CDC device **VID `0483` PID `5740`**. That is the only serial port JMRI should open for CAN (57600). **Do not flash it.**
+
+| Board | VID:PID (stable) | This Ubuntu session | Notes |
+| --- | --- | --- | --- |
+| **RR-CirKits LCC gateway** | `0483:5740` STM32 VCP `209737A73931` | **`/dev/ttyACM0`** | JMRI LCC Buffer @ 57600. Profile must **not** use the Mega. |
+| Arduino Mega 2560 + Snowball + KS0258 | `2341:0042` | `/dev/ttyACM1` | Node `.A5.02` on **CAN**, not this USB. Leave serial closed. |
+| Wemos D1 R32 **servo** `LccWifiTurnoutNode` | `1a86:7523` CH340 (USB `1-1.3`) | `/dev/ttyUSB1` | Wi-Fi `192.168.1.233` SRIF2333. **On this JMRI hub** (TCP 12021). Node `.A5.03`. |
+| Wemos D1 R32 **ILI9486 OpenMRN display** | `1a86:7523` CH340 (USB `1-1.2`) | `/dev/ttyUSB0` | Wi-Fi `192.168.1.8` SRIF2333. Firmware is STA-only: **no OpenMRN hub yet** (still aims at CS-105 `192.168.1.27`). Node `.A5.01`. |
+| Waveshare **ESP32-S3-LCD-4.3** | `303a:1001` USB-JTAG `1C:DB:D4:42:EF:D0` | `/dev/ttyACM2` when enumerated | Wi-Fi `192.168.1.88` (same MAC). **Not** a TCP client of this laptop hub. Native USB drops if the serial port is opened with DTR/RTS. |
+
+CH340 boards have **no unique USB serial**; distinguish them by USB path (`1-1.2` vs `1-1.3`) or by the boot banner (`LccWifiTurnoutNode` vs `d1r32_ili9486_openmrn_wifi`).
+
+**Keep the RR-CirKits gateway from moving (no extra sudo):** Linux already creates a stable symlink. Use this in JMRI if the port list allows a path (it does not stay `ttyACM0` when other CDC devices plug in first):
+
+```text
+/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00
+```
+
+You cannot pin **`/dev/ttyACM0`** without a udev **NAME=** rule (kernel names, needs root, easy to fight other CDC devices). A one-time root symlink is safer than forcing ACM0:
+
+```bash
+# optional, once; then pick /dev/rrcirkits-lcc in JMRI
+echo 'SUBSYSTEM=="tty", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", ATTRS{serial}=="209737A73931", SYMLINK+="rrcirkits-lcc"' | sudo tee /etc/udev/rules.d/99-rrcirkits-lcc.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 ## ESP32-only features (standing rule)
@@ -129,7 +157,7 @@ python -u scripts/build_lcc_wifi.py --flash --port COM7
 
 SSID **SRIF2333** is public. Do not create `wifi_secrets.env`. Do not pass `--password`.
 
-## Quality baseline (`wemos-d1r32`, **v2.05**, 24-Aug-2026)
+## Quality baseline (`wemos-d1r32`, **v2.06**, 25-Aug-2026)
 
 Host Unity **16/16** (`scripts/run_tests.sh` also runs `git_version.py --selftest`). On-target Unity is the same suite; do **not** flash it over `LccWifiTurnoutNode`.
 

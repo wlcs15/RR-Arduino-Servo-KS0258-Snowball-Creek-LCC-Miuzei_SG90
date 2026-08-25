@@ -94,3 +94,7 @@ How-To-Resume.txt
 RESUME.txt
 
 # Live JMRI profile is ~/.jmri (or %USERPROFILE%\.jmri). Canonical panels are docs/jmri/*.xml.
+
+# Local UFW/tcpdump snapshots (may contain host firewall details)
+esp32-lcc-*.pcap
+esp32-lcc-*.txt

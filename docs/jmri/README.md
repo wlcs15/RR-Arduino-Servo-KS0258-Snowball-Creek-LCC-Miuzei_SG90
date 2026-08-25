@@ -25,7 +25,7 @@ CAN in JMRI is the RR-CirKits gateway (STM32 VID 0483:5740 @ 57600), **not** the
 docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml
 ```
 
-Oval main (two tracks + end connectors) with a north siding and a south siding.
+Oval main (two tracks + 180° end curves, not vertical straights) with a north siding and a south siding.
 Mega is the west pair; ESP32 is the east pair. ESP32 uses OpenLCB over Wi-Fi
 GridConnect (JMRI hub TCP **12021**), not Snowball Creek.
 

@@ -39,7 +39,7 @@
   <signalmastlogics class="jmri.managers.configurexml.DefaultSignalMastLogicManagerXml">
     <logicDelay>500</logicDelay>
   </signalmastlogics>
-  <LayoutEditor class="jmri.jmrit.display.layoutEditor.configurexml.LayoutEditorXml" name="Mega ESP32 loop two sidings" x="80" y="40" windowheight="520" windowwidth="1100" panelheight="400" panelwidth="1000" sliders="no" scrollable="both" editable="yes" positionable="yes" controlling="yes" animating="yes" showhelpbar="no" drawgrid="yes" snaponadd="yes" snaponmove="yes" antialiasing="no" turnoutcircles="yes" tooltipsnotedit="no" tooltipsinedit="yes" mainlinetrackwidth="4" xscale="1.0" yscale="1.0" sidetrackwidth="2" defaulttrackcolor="darkGray" defaultoccupiedtrackcolor="red" defaultalternativetrackcolor="white" defaulttextcolor="black" turnoutcirclecolor="black" turnoutcirclesize="4" turnoutdrawunselectedleg="yes" turnoutbx="20.0" turnoutcx="20.0" turnoutwid="10.0" xoverlong="30.0" xoverhwid="10.0" xovershort="10.0" autoblkgenerate="no" redBackground="192" greenBackground="192" blueBackground="192" gridSize="10" gridSize2nd="10" openDispatcher="no" useDirectTurnoutControl="no">
+  <LayoutEditor class="jmri.jmrit.display.layoutEditor.configurexml.LayoutEditorXml" name="Mega ESP32 loop two sidings" x="80" y="40" windowheight="620" windowwidth="1100" panelheight="460" panelwidth="980" sliders="no" scrollable="both" editable="yes" positionable="yes" controlling="yes" animating="yes" showhelpbar="no" drawgrid="yes" snaponadd="yes" snaponmove="yes" antialiasing="no" turnoutcircles="yes" tooltipsnotedit="no" tooltipsinedit="yes" mainlinetrackwidth="4" xscale="1.0" yscale="1.0" sidetrackwidth="2" defaulttrackcolor="darkGray" defaultoccupiedtrackcolor="red" defaultalternativetrackcolor="white" defaulttextcolor="black" turnoutcirclecolor="black" turnoutcirclesize="4" turnoutdrawunselectedleg="yes" turnoutbx="20.0" turnoutcx="20.0" turnoutwid="10.0" xoverlong="30.0" xoverhwid="10.0" xovershort="10.0" autoblkgenerate="no" redBackground="192" greenBackground="192" blueBackground="192" gridSize="10" gridSize2nd="10" openDispatcher="no" useDirectTurnoutControl="no">
     <layoutTrackDrawingOptions name="Mega ESP32 loop two sidings" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutTrackDrawingOptionsXml">
       <mainBallastColor>#000000</mainBallastColor>
       <mainBallastWidth>0</mainBallastWidth>
@@ -66,30 +66,30 @@
       <sideTieLength>0</sideTieLength>
       <sideTieWidth>0</sideTieWidth>
     </layoutTrackDrawingOptions>
-    <positionablelabel x="40" y="40" level="4" forcecontroloff="false" hidden="no" positionable="true" showtooltip="true" editable="true" text="Mega .A5.02 CAN" size="14" style="1" red="0" green="0" blue="0" hasBackground="no" justification="left" class="jmri.jmrit.display.configurexml.PositionableLabelXml" />
-    <positionablelabel x="470" y="40" level="4" forcecontroloff="false" hidden="no" positionable="true" showtooltip="true" editable="true" text="ESP32 .A5.03 WiFi" size="14" style="1" red="0" green="0" blue="0" hasBackground="no" justification="left" class="jmri.jmrit.display.configurexml.PositionableLabelXml" />
-    <layoutturnout ident="TO3" type="RH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="80.0" ycen="100.0" xa="60.0" ya="100.0" xb="100.0" yb="100.0" xc="100.0" yc="80.0" xd="60.0" yd="100.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutRHTurnoutXml" turnoutname="Mega KS0258 ch0" connectaname="T1" connectbname="T2" connectcname="T5" />
-    <layoutturnout ident="TO4" type="RH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="80.0" ycen="160.0" xa="60.0" ya="160.0" xb="100.0" yb="160.0" xc="100.0" yc="180.0" xd="60.0" yd="160.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutRHTurnoutXml" turnoutname="Mega KS0258 ch1" connectaname="T1" connectbname="T3" connectcname="T6" />
-    <layoutturnout ident="TO5" type="LH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="520.0" ycen="100.0" xa="540.0" ya="100.0" xb="500.0" yb="100.0" xc="500.0" yc="80.0" xd="540.0" yd="100.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutLHTurnoutXml" turnoutname="ESP32 PCA9685 ch0" connectaname="T4" connectbname="T2" connectcname="T5" />
-    <layoutturnout ident="TO6" type="LH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="520.0" ycen="160.0" xa="540.0" ya="160.0" xb="500.0" yb="160.0" xc="500.0" yc="180.0" xd="540.0" yd="160.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutLHTurnoutXml" turnoutname="ESP32 PCA9685 ch1" connectaname="T4" connectbname="T3" connectcname="T6" />
-    <tracksegment ident="T1" connect1name="TO3" type1="TURNOUT_A" connect2name="TO4" type2="TURNOUT_A" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <positionablelabel x="120" y="30" level="4" forcecontroloff="false" hidden="no" positionable="true" showtooltip="true" editable="true" text="Mega .A5.02 CAN" size="14" style="1" red="0" green="0" blue="0" hasBackground="no" justification="left" class="jmri.jmrit.display.configurexml.PositionableLabelXml" />
+    <positionablelabel x="620" y="30" level="4" forcecontroloff="false" hidden="no" positionable="true" showtooltip="true" editable="true" text="ESP32 .A5.03 WiFi" size="14" style="1" red="0" green="0" blue="0" hasBackground="no" justification="left" class="jmri.jmrit.display.configurexml.PositionableLabelXml" />
+    <layoutturnout ident="TO3" type="RH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="180.0" ycen="130.0" xa="160.0" ya="130.0" xb="200.0" yb="130.0" xc="200.0" yc="70.0" xd="160.0" yd="130.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutRHTurnoutXml" turnoutname="Mega KS0258 ch0" connectaname="T1" connectbname="T2" connectcname="T5" />
+    <layoutturnout ident="TO4" type="RH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="180.0" ycen="270.0" xa="160.0" ya="270.0" xb="200.0" yb="270.0" xc="200.0" yc="330.0" xd="160.0" yd="270.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutRHTurnoutXml" turnoutname="Mega KS0258 ch1" connectaname="T1" connectbname="T3" connectcname="T6" />
+    <layoutturnout ident="TO5" type="LH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="700.0" ycen="130.0" xa="720.0" ya="130.0" xb="680.0" yb="130.0" xc="680.0" yc="70.0" xd="720.0" yd="130.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutLHTurnoutXml" turnoutname="ESP32 PCA9685 ch0" connectaname="T4" connectbname="T2" connectcname="T5" />
+    <layoutturnout ident="TO6" type="LH_TURNOUT" hidden="no" disabled="no" disableWhenOccupied="no" showtooltip="yes" continuing="2" xcen="700.0" ycen="270.0" xa="720.0" ya="270.0" xb="680.0" yb="270.0" xc="680.0" yc="330.0" xd="720.0" yd="270.0" ver="1" class="jmri.jmrit.display.layoutEditor.configurexml.LayoutLHTurnoutXml" turnoutname="ESP32 PCA9685 ch1" connectaname="T4" connectbname="T3" connectcname="T6" />
+    <tracksegment ident="T1" connect1name="TO3" type1="TURNOUT_A" connect2name="TO4" type2="TURNOUT_A" dashed="no" mainline="yes" hidden="no" arc="yes" circle="yes" flip="yes" angle="180.0" hideConLines="yes" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
     <tracksegment ident="T2" connect1name="TO3" type1="TURNOUT_B" connect2name="TO5" type2="TURNOUT_B" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
     <tracksegment ident="T3" connect1name="TO4" type1="TURNOUT_B" connect2name="TO6" type2="TURNOUT_B" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
-    <tracksegment ident="T4" connect1name="TO5" type1="TURNOUT_A" connect2name="TO6" type2="TURNOUT_A" dashed="no" mainline="yes" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
+    <tracksegment ident="T4" connect1name="TO5" type1="TURNOUT_A" connect2name="TO6" type2="TURNOUT_A" dashed="no" mainline="yes" hidden="no" arc="yes" circle="yes" flip="no" angle="180.0" hideConLines="yes" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
     <tracksegment ident="T5" connect1name="TO3" type1="TURNOUT_C" connect2name="TO5" type2="TURNOUT_C" dashed="no" mainline="no" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
     <tracksegment ident="T6" connect1name="TO4" type1="TURNOUT_C" connect2name="TO6" type2="TURNOUT_C" dashed="no" mainline="no" hidden="no" class="jmri.jmrit.display.layoutEditor.configurexml.TrackSegmentXml" />
   </LayoutEditor>
   <filehistory>
     <operation>
       <type>app</type>
-      <date>Mon Aug 24 12:00:00 CDT 2026</date>
-      <filename>Grok CLI (v2.02 panel)</filename>
+      <date>Tue Aug 25 17:40:00 CDT 2026</date>
+      <filename>Grok CLI (v2.05 panel, 180 deg end curves)</filename>
     </operation>
     <operation>
       <type>Store</type>
-      <date>Mon Aug 24 12:00:00 CDT 2026</date>
+      <date>Tue Aug 25 17:40:00 CDT 2026</date>
       <filename>docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml</filename>
     </operation>
   </filehistory>
-  <!--Written for JMRI 5.15 Layout Editor: Mega .A5.02 + ESP32 .A5.03 loop with two sidings-->
+  <!--Written for JMRI 5.15 Layout Editor: Mega .A5.02 + ESP32 .A5.03 loop; 180 deg curves at the siding ends-->
 </layout-config>
