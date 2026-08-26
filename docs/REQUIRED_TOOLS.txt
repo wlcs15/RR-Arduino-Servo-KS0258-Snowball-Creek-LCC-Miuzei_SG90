@@ -6,9 +6,17 @@ They do not install anything and they never handle a Wi-Fi password.
 
   Windows 11 cmd / PowerShell:
     powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_tools.ps1
+    python -u scripts\find_arduino.py
 
   Ubuntu / other Linux:
     ./scripts/check_tools.sh
+    python3 -u scripts/find_arduino.py
+
+These do not install or uninstall anything. On Windows 11, Arduino IDE
+libraries often live under OneDrive\Documents\Arduino\libraries while
+`arduino-cli lib list` is empty. find_arduino.py searches those folders
+(and Arduino15\packages for cores) so a working IDE install is reported
+as OK. Do not reinstall Library Manager packages to satisfy the checker.
 
 Exit 0 if every required tool is present. Exit 1 if any required tool is
 missing; the missing names are printed with what they are used for.

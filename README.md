@@ -238,10 +238,11 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 
 Two scripts check whether the tools needed to **build this project** are installed. They only print; they do not install packages and they never handle a Wi-Fi password. Missing **required** tools are listed with what they are for. Quality tools (lizard, cppcheck, clang-tidy, llvm-cov) print as `WARN` and do not fail the check. Full list and install hints: [docs/REQUIRED_TOOLS.txt](docs/REQUIRED_TOOLS.txt).
 
-Windows 11:
+Windows 11 (does **not** uninstall; also finds Arduino IDE / OneDrive library folders):
 
 ```bat
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_tools.ps1
+python -u scripts\find_arduino.py
 ```
 
 Ubuntu:

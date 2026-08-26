@@ -86,29 +86,30 @@ fi
 
 if [[ -n "$cli" ]]; then
   ok arduino-cli "$("$cli" version 2>/dev/null | head -n1)"
-  cores="$("$cli" core list 2>/dev/null || true)"
-  if echo "$cores" | grep -q 'arduino:avr'; then
-    ok "arduino:avr" "Mega 2560 core installed"
-  else
-    fail "arduino:avr" "arduino-cli core install arduino:avr"
-  fi
-  if echo "$cores" | grep -qi 'esp32:esp32'; then
-    ok "esp32:esp32" "D1 R32 core installed"
-  else
-    fail "esp32:esp32" "arduino-cli core install esp32:esp32"
-  fi
-  libs="$("$cli" lib list 2>/dev/null || true)"
-  for name in LibLCC ACAN2517 ACAN2515 M95_EEPROM OpenMRNLite ESP32Servo; do
-    if echo "$libs" | grep -qi "$name"; then
-      ok "lib $name" "Arduino Library Manager"
-    else
-      fail "lib $name" "arduino-cli lib install $name"
-    fi
-  done
 else
   fail arduino-cli "https://arduino.github.io/arduino-cli/latest/installation/"
-  fail "arduino:avr" "needed once arduino-cli is installed"
-  fail "esp32:esp32" "needed once arduino-cli is installed"
+fi
+
+# Filesystem first (Arduino IDE / OneDrive / ~/.arduino15). Never uninstall.
+if [[ -n "$py" && -f "$root/scripts/find_arduino.py" ]]; then
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      ok "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    elif [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      case "${BASH_REMATCH[1]}" in
+        arduino:avr|esp32:esp32) ok "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" ;;
+      esac
+    elif [[ "$line" =~ ^[[:space:]]*MISSING[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      fail "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    elif [[ "$line" =~ ^[[:space:]]*MISSING[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      case "${BASH_REMATCH[1]}" in
+        arduino:avr|esp32:esp32) fail "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" ;;
+      esac
+    fi
+  done < <("$py" -u "$root/scripts/find_arduino.py")
+else
+  fail "arduino:avr" "python scripts/find_arduino.py (does not uninstall)"
+  fail "esp32:esp32" "python scripts/find_arduino.py (does not uninstall)"
 fi
 
 echo ""

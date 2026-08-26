@@ -129,29 +129,79 @@ if (-not $cli) {
 if ($cli) {
     $cliVer = & $cli version 2>$null | Select-Object -First 1
     Write-Ok "arduino-cli" "$cliVer"
-    $cores = & $cli core list 2>$null | Out-String
-    if ($cores -match "arduino:avr") {
-        Write-Ok "arduino:avr" "Mega 2560 core installed"
-    } else {
-        Write-Fail "arduino:avr" "arduino-cli core install arduino:avr"
-    }
-    if ($cores -match "esp32:esp32") {
-        Write-Ok "esp32:esp32" "D1 R32 core installed"
-    } else {
-        Write-Fail "esp32:esp32" "arduino-cli core install esp32:esp32"
-    }
-    $libs = & $cli lib list 2>$null | Out-String
-    foreach ($name in @("LibLCC", "ACAN2517", "ACAN2515", "M95_EEPROM", "OpenMRNLite", "ESP32Servo")) {
-        if ($libs -match [regex]::Escape($name)) {
-            Write-Ok "lib $name" "Arduino Library Manager"
-        } else {
-            Write-Fail "lib $name" "arduino-cli lib install $name"
-        }
-    }
 } else {
     Write-Fail "arduino-cli" "PATH, %USERPROFILE%\ex-installer\arduino-cli\, or Arduino IDE"
-    Write-Fail "arduino:avr" "needed once arduino-cli is installed"
-    Write-Fail "esp32:esp32" "needed once arduino-cli is installed"
+}
+
+# Do not use `arduino-cli lib list` alone. Arduino IDE / OneDrive Documents
+# often already has the libraries while CLI's list is empty. Never uninstall.
+$finder = Join-Path $PSScriptRoot "find_arduino.py"
+$foundViaPy = $false
+if ($py -and (Test-Path -LiteralPath $finder)) {
+    $scan = & $py -u $finder 2>$null
+    if ($LASTEXITCODE -eq 0 -or $scan) {
+        $foundViaPy = $true
+        foreach ($line in @($scan)) {
+            if ($line -match '^\s*OK\s+(\S+)\s+(.*)$') {
+                Write-Ok $Matches[1] $Matches[2].Trim()
+            } elseif ($line -match '^\s*OK\s+lib\s+(\S+)\s+(.*)$') {
+                Write-Ok ("lib " + $Matches[1]) $Matches[2].Trim()
+            } elseif ($line -match '^\s*MISSING\s+lib\s+(\S+)\s+(.*)$') {
+                Write-Fail ("lib " + $Matches[1]) $Matches[2].Trim()
+            } elseif ($line -match '^\s*MISSING\s+(\S+)\s+(.*)$') {
+                Write-Fail $Matches[1] $Matches[2].Trim()
+            }
+        }
+    }
+}
+if (-not $foundViaPy) {
+    # Native fallback: same folders as find_arduino.py (OneDrive Documents included).
+    $homeDir2 = $env:USERPROFILE
+    $libRoots = @(
+        (Join-Path $homeDir2 "Arduino\libraries"),
+        (Join-Path $homeDir2 "Documents\Arduino\libraries"),
+        (Join-Path $homeDir2 "OneDrive\Documents\Arduino\libraries")
+    )
+    Get-ChildItem -Path $homeDir2 -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "OneDrive*" } |
+        ForEach-Object {
+            $libRoots += (Join-Path $_.FullName "Documents\Arduino\libraries")
+            $libRoots += (Join-Path $_.FullName "Arduino\libraries")
+        }
+    $dataRoots = @(
+        (Join-Path $homeDir2 ".arduino15"),
+        (Join-Path $env:LOCALAPPDATA "Arduino15")
+    )
+    function Test-Lib([string]$Name) {
+        foreach ($root in $libRoots) {
+            if (-not (Test-Path -LiteralPath $root)) { continue }
+            $direct = Join-Path $root $Name
+            if (Test-Path -LiteralPath $direct) { return $direct }
+            Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+                $prop = Join-Path $_.FullName "library.properties"
+                if (Test-Path $prop) {
+                    $n = (Select-String -Path $prop -Pattern "^name=" -ErrorAction SilentlyContinue | Select-Object -First 1)
+                    if ($n -and ($n.Line.Substring(5).Trim() -eq $Name)) { return $_.FullName }
+                }
+            }
+        }
+        return $null
+    }
+    $avr = $null
+    $esp = $null
+    foreach ($d in $dataRoots) {
+        $a = Join-Path $d "packages\arduino\hardware\avr"
+        $e = Join-Path $d "packages\esp32\hardware\esp32"
+        if ((-not $avr) -and (Test-Path $a)) { $avr = $a }
+        if ((-not $esp) -and (Test-Path $e)) { $esp = $e }
+    }
+    if ($avr) { Write-Ok "arduino:avr" $avr } else { Write-Fail "arduino:avr" "not under Arduino15\packages (do not uninstall IDE copies)" }
+    if ($esp) { Write-Ok "esp32:esp32" $esp } else { Write-Fail "esp32:esp32" "not under Arduino15\packages (do not uninstall IDE copies)" }
+    foreach ($name in @("LibLCC", "ACAN2517", "ACAN2515", "M95_EEPROM", "OpenMRNLite", "ESP32Servo")) {
+        $p = Test-Lib $name
+        if ($p) { Write-Ok "lib $name" $p }
+        else { Write-Fail "lib $name" "not in Arduino\libraries (including OneDrive Documents). Do not uninstall." }
+    }
 }
 
 Write-Host ""
