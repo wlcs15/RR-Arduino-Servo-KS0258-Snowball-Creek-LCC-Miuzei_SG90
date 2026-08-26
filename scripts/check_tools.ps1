@@ -2,10 +2,47 @@
 # Does not install anything. Does not handle a Wi-Fi password.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_tools.ps1
+#
+# Writes local\check_tools-YYYYMMDD-HHMMSS-<host>.log (and check_tools-last.log)
+# so a PC without the Grok CLI can still share the result.
 
 $ErrorActionPreference = "Continue"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $Root
+
+if (-not $env:CHECK_TOOLS_INNER) {
+    $localDir = Join-Path $Root "local"
+    New-Item -ItemType Directory -Force -Path $localDir | Out-Null
+    $ts = Get-Date -Format "yyyyMMdd-HHmmss"
+    $hn = (($env:COMPUTERNAME, "windows") -ne $null)[0]
+    $hn = ($hn -replace "[^A-Za-z0-9._-]", "_")
+    $log = Join-Path $localDir "check_tools-$ts-$hn.log"
+    $last = Join-Path $localDir "check_tools-last.log"
+    $header = @(
+        "=== check_tools log (share this file with Grok; Grok CLI not required) ==="
+        "file: $log"
+        "time: $(Get-Date -Format o)"
+        "host: $env:COMPUTERNAME"
+        "os: $($PSVersionTable.OS)"
+        "ps: $($PSVersionTable.PSVersion)"
+        "user: $env:USERNAME"
+        "repo: $Root"
+        "python: $((Get-Command python -ErrorAction SilentlyContinue).Source)"
+        ""
+    ) -join [Environment]::NewLine
+    Set-Content -Path $log -Value $header -Encoding UTF8
+    $env:CHECK_TOOLS_INNER = "1"
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @args *>&1 |
+        Tee-Object -FilePath $log -Append
+    $rc = $LASTEXITCODE
+    if ($null -eq $rc) { $rc = 0 }
+    Copy-Item -LiteralPath $log -Destination $last -Force
+    Write-Host ""
+    Write-Host "Share this file with Grok (no Grok CLI needed):"
+    Write-Host "  $log"
+    Write-Host "  $last"
+    exit $rc
+}
 
 $script:MissingReq = 0
 $script:MissingOpt = 0

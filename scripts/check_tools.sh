@@ -1,10 +1,44 @@
 #!/usr/bin/env bash
 # List whether required build tools are on this Linux machine.
 # Does not install anything. Does not handle a Wi-Fi password.
+#
+# Writes local/check_tools-YYYYMMDD-HHMMSS-<host>.log (and check_tools-last.log)
+# so a machine without the Grok CLI can still share the result.
 set -u
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
+
+if [[ -z "${CHECK_TOOLS_INNER:-}" ]]; then
+    mkdir -p "$root/local"
+    ts="$(date +%Y%m%d-%H%M%S)"
+    host="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo unknown)"
+    host="${host//[^A-Za-z0-9._-]/_}"
+    log="$root/local/check_tools-${ts}-${host}.log"
+    last="$root/local/check_tools-last.log"
+    {
+        echo "=== check_tools log (share this file with Grok; Grok CLI not required) ==="
+        echo "file: $log"
+        echo "time: $(date -Is 2>/dev/null || date)"
+        echo "host: $(hostname 2>/dev/null || echo unknown)"
+        echo "os: $(uname -a 2>/dev/null || echo unknown)"
+        echo "user: ${USER:-unknown}"
+        echo "repo: $root"
+        echo "git: $(git -C "$root" describe --tags --always --dirty 2>/dev/null || echo n/a)"
+        echo "python: $(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo none)"
+        echo
+    } >"$log"
+    set +e
+    CHECK_TOOLS_INNER=1 "$0" "$@" 2>&1 | tee -a "$log"
+    rc=${PIPESTATUS[0]}
+    set -e
+    cp -f "$log" "$last"
+    echo
+    echo "Share this file with Grok (no Grok CLI needed):"
+    echo "  $log"
+    echo "  $last"
+    exit "$rc"
+fi
 
 missing_req=0
 missing_opt=0

@@ -245,6 +245,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check_tools.ps1
 python -u scripts\find_arduino.py
 ```
 
+Each run writes `local\check_tools-last.log` (gitignored). Attach that file to share a Windows box that has no Grok CLI.
+
 Ubuntu:
 
 ```bash
