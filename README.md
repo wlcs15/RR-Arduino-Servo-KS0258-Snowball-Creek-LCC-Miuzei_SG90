@@ -87,17 +87,19 @@ arduino-cli compile --fqbn arduino:avr:mega:cpu=atmega2560 \
 # Optional later: -DLCC_ON (no UART)  -DOPTIMIZE_MEMORY (-Os, smaller CAN FIFOs)
 ```
 
-**USB vs JMRI (ACM/USB numbers swap; identify by VID:PID):**
+**USB vs JMRI (`ttyACM*` / `ttyUSB*` numbers swap; use `/dev/serial/by-id/`):**
 
-The **RR-CirKits LCC Buffer / LCC–LocoNet gateway** is the STM32 CDC device **VID `0483` PID `5740`**. That is the only serial port JMRI should open for CAN (57600). **Do not flash it.**
+The **RR-CirKits LCC Buffer** is STM32 CDC **VID `0483` PID `5740`**. That is the only serial JMRI should open for CAN (57600). **Do not flash it.** Opening a CH340/`ttyUSB*` with DTR resets that ESP32.
 
-| Board | VID:PID (stable) | This Ubuntu session | Notes |
+| Board | VID:PID | `/dev/serial/by-id/` (stable) | Node |
 | --- | --- | --- | --- |
-| **RR-CirKits LCC gateway** | `0483:5740` STM32 VCP `209737A73931` | **`/dev/ttyACM0`** | JMRI LCC Buffer @ 57600. Profile must **not** use the Mega. |
-| Arduino Mega 2560 + Snowball + KS0258 | `2341:0042` | `/dev/ttyACM1` | Node `.A5.02` on **CAN**, not this USB. Leave serial closed. |
-| Wemos D1 R32 **servo** `LccWifiTurnoutNode` | `1a86:7523` CH340 (USB `1-1.3`) | `/dev/ttyUSB1` | Wi-Fi `192.168.1.233` SRIF2333. **On this JMRI hub** (TCP 12021). Node `.A5.03`. |
-| Wemos D1 R32 **ILI9486 OpenMRN display** | `1a86:7523` CH340 (USB `1-1.2`) | `/dev/ttyUSB0` | Wi-Fi `192.168.1.8` SRIF2333. Firmware is STA-only: **no OpenMRN hub yet** (still aims at CS-105 `192.168.1.27`). Node `.A5.01`. |
-| Waveshare **ESP32-S3-LCD-4.3** | `303a:1001` USB-JTAG `1C:DB:D4:42:EF:D0` | `/dev/ttyACM2` when enumerated | Wi-Fi `192.168.1.88` (same MAC). **Not** a TCP client of this laptop hub. Native USB drops if the serial port is opened with DTR/RTS. |
+| **RR-CirKits LCC gateway** | `0483:5740` | `usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00` | CAN buffer @ 57600 |
+| Arduino Mega 2560 | `2341:0042` | `usb-Arduino__www.arduino.cc__0042_85036313230351A00280-if00` | `.A5.02` CAN (leave serial closed) |
+| D1 R32 **display** | `1a86:7523` CH340 | no unique serial — MAC `a4:f0:0f:73:97:3c` | `.A5.01` Wi-Fi hub mDNS |
+| D1 R32 **servo** | `1a86:7523` CH340 | no unique serial — MAC `14:33:5c:2e:b4:d8` | `.A5.03` Wi-Fi hub mDNS |
+| ESP32-S3 panel | `303a:1001` | `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:42:EF:D0-if00` | `.A5.04` (BOOT-hold if USB-JTAG drops) |
+
+Flash Mega with `python -u scripts/build_lcc_mega.py` (does **not** upload). Flash `.A5.03` with `python -u scripts/build_lcc_wifi.py --flash --port /dev/ttyUSB1` after confirming that port’s MAC is `14:33:5c:2e:b4:d8`. SNIP softwareVersion is the git tag (`v2.06` clean, `v2.06+` dirty).
 
 CH340 boards have **no unique USB serial**; distinguish them by USB path (`1-1.2` vs `1-1.3`) or by the boot banner (`LccWifiTurnoutNode` vs `d1r32_ili9486_openmrn_wifi`).
 

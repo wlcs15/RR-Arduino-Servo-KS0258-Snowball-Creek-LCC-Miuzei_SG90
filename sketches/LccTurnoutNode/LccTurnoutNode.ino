@@ -13,10 +13,12 @@
 // Application sources stay BSD-2-Clause. Linking LibLCC (GPL-2.0)
 // makes the firmware image GPL-2.0. Do not copy LibLCC into lib/.
 //
-// Events on node 05.01.01.01.A5.02 (channel in byte 6):
-//   ch0 throw/close  ...02.00.00 / ...02.00.01
-//   ch1 throw/close  ...02.01.00 / ...02.01.01
-//   ch0 limits       ...02.00.10 .. .13
+// Events on node 05.01.01.01.A5.02 (channel in byte 6, 8-byte event):
+//   ch0 throw/close  05.01.01.01.A5.02.00.00 / ...A5.02.00.01
+//   ch1 throw/close  05.01.01.01.A5.02.01.00 / ...A5.02.01.01
+//   ch0 limits       ...A5.02.00.10 .. .13  (neither/thrown/closed/both)
+// OwlThree map: .A5.01 display Wi-Fi, .A5.02 this Mega CAN, .A5.03 servo
+// Wi-Fi, .A5.04 S3 panel. Next free .A5.05.
 // Do not send throw/close until the ladder is wired (pulses still 0/180).
 
 #ifdef OPTIMIZE_MEMORY
@@ -48,6 +50,12 @@
 #include <BoardPins.h>
 #include <LimitLadder.h>
 #include <TurnoutChannel.h>
+#if defined(__has_include)
+#if __has_include("git_version.inc")
+#include "git_version.inc"
+#endif
+#endif
+#include <GitVersion.h>
 
 #if RR_USE_KS0258
 #include <Adafruit_PWMServoDriver.h>
@@ -362,7 +370,10 @@ static void setup_lcc(uint64_t unique_id) {
   lcc_context_set_unique_identifer(ctx, unique_id);
   lcc_context_set_write_function(ctx, lcc_write, lcc_buffer_size);
   lcc_context_set_simple_node_information(ctx, "OwlThree", "RR-Servo-KS0258",
-                                          "Mega+Snowball", "v1.00");
+                                          "Mega+Snowball",
+                                          RR_GIT_VERSION_LITERAL);
+  lcc_context_set_simple_node_name_description(ctx, "RR-Servo-KS0258",
+                                               "OwlThree turnout Mega");
   lcc_datagram_context_new(ctx);
   struct lcc_memory_context *mem = lcc_memory_new(ctx);
   static const char kCdi[] PROGMEM =
@@ -373,7 +384,7 @@ static void setup_lcc(uint64_t unique_id) {
       "<manufacturer>OwlThree</manufacturer>"
       "<model>RR-Servo-KS0258</model>"
       "<hardwareVersion>Mega+Snowball</hardwareVersion>"
-      "<softwareVersion>v1.00</softwareVersion>"
+      "<softwareVersion>" RR_GIT_VERSION_LITERAL "</softwareVersion>"
       "</identification>"
       "<acdi/>"
       "</cdi>";
@@ -444,11 +455,51 @@ static void setup_can() {
   }
 }
 
+static void print_reset_reason(void) {
+#ifndef LCC_ON
+  uint8_t r = MCUSR;
+  MCUSR = 0;
+  RR_LCC_PRINT(F("reset 0x"));
+  RR_LCC_PRINT(r, HEX);
+  if (r & _BV(PORF)) {
+    RR_LCC_PRINT(F(" poweron"));
+  }
+  if (r & _BV(EXTRF)) {
+    RR_LCC_PRINT(F(" extrst"));
+  }
+  if (r & _BV(BORF)) {
+    RR_LCC_PRINT(F(" brownout"));
+  }
+  if (r & _BV(WDRF)) {
+    RR_LCC_PRINT(F(" wdt"));
+  }
+  RR_LCC_PRINTLN();
+#endif
+}
+
+#ifndef LCC_ON
+extern "C" void __assert(const char *func, const char *file, int line,
+                         const char *expr) {
+  RR_LCC_PRINT(F("assert "));
+  RR_LCC_PRINT(file);
+  RR_LCC_PRINT(':');
+  RR_LCC_PRINT(line);
+  RR_LCC_PRINT(' ');
+  RR_LCC_PRINTLN(expr);
+  (void)func;
+  for (;;) {
+  }
+}
+#endif
+
 void setup() {
 #ifndef LCC_ON
   Serial.begin(115200);
   while (!Serial && millis() < 2000) {
   }
+  print_reset_reason();
+  RR_LCC_PRINT(F("firmware "));
+  RR_LCC_PRINTLN(F(RR_GIT_VERSION_LITERAL));
 #endif
   delay(2000);
 

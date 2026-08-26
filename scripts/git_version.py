@@ -125,14 +125,31 @@ def selftest():
     return 0
 
 
+def write_inc(path, ver=None):
+    """Write #define RR_GIT_VERSION_LITERAL \"vN.N+\" for Arduino SNIP."""
+    if ver is None:
+        ver = sanitize_cflag(read_repo_version(ROOT))
+    text = '#define RR_GIT_VERSION_LITERAL "%s"\n' % ver
+    directory = os.path.dirname(path)
+    if directory and not os.path.isdir(directory):
+        os.makedirs(directory)
+    with open(path, "w") as out:
+        out.write(text)
+    return ver
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", default=ROOT)
     parser.add_argument("--selftest", action="store_true")
+    parser.add_argument("--write-inc", default=None, help="Write git_version.inc")
     args = parser.parse_args()
     if args.selftest:
         return selftest()
-    print(sanitize_cflag(read_repo_version(args.repo)))
+    ver = sanitize_cflag(read_repo_version(args.repo))
+    if args.write_inc:
+        write_inc(args.write_inc, ver)
+    print(ver)
     return 0
 
 

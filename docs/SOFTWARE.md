@@ -25,6 +25,8 @@ git submodule update --init --recursive
 
 ESP32 Wi-Fi PSK uses the same host-encrypt wrap as `Arduino_Wemos_TTgo_D1_R32_ESPDuino-32_Waveshare_4inch_OpenMRN_WiFi`: Grok never sees the password; `scripts/provision_wifi_build.py` is TTY-only.
 
+USB: identify boards by `/dev/serial/by-id/`, not `ttyACM*` order. Gateway is `usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00` (`0483:5740`). Mega is `usb-Arduino__www.arduino.cc__0042_85036313230351A00280-if00` (`2341:0042`) — never flash the gateway, never point JMRI at the Mega. The two CH340s share VID:PID; use MAC. S3 native USB is `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:42:EF:D0-if00`. Mega SNIP softwareVersion is baked by `python -u scripts/build_lcc_mega.py` (`git_version.inc`).
+
 Install this repo’s library:
 
 ```bash

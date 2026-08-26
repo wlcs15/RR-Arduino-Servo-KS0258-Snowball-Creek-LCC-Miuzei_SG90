@@ -4,6 +4,11 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
+#if defined(__has_include)
+#if __has_include("git_version.inc")
+#include "git_version.inc"
+#endif
+#endif
 #include "GitVersion.h"
 
 namespace openlcb
@@ -11,7 +16,7 @@ namespace openlcb
 
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4, "OwlThree", "RR Servo D1 R32 (WiFi)", "D1R32",
-    RR_GIT_VERSION_STR(RR_GIT_VERSION)};
+    RR_GIT_VERSION_LITERAL};
 
 static constexpr uint16_t CANONICAL_VERSION = 0x2001;
 

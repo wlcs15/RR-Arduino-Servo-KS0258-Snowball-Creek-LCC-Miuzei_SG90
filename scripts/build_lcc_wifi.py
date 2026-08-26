@@ -41,10 +41,12 @@ def find_cli():
 
 
 def extra_flags():
-    ver = git_version.sanitize_cflag(git_version.read_repo_version(ROOT))
-    # Token, not a quoted string: config.h stringizes RR_GIT_VERSION for SNIP.
+    inc = os.path.join(SKETCH, "git_version.inc")
+    ver = git_version.write_inc(inc)
+    # Token plus a quoted LITERAL so v2.06+ is a real SNIP string.
     flags = "-DRR_WIFI_LCC=1 -DRR_GIT_VERSION=%s" % ver
     print("SNIP softwareVersion %s" % ver)
+    print("wrote %s" % inc)
     if os.path.isfile(WRAP):
         flags += " -DWIFI_WRAP_BLOB_PRESENT=1"
         print("baking existing wrap ciphertext (file is gitignored; not a password)")

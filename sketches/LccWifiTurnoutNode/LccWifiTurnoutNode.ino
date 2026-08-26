@@ -168,11 +168,25 @@ static bool mount_spiffs(void) {
   return SPIFFS.begin(true);
 }
 
+static void force_acdi_user_version(void) {
+  // SNIP FILE_LITERAL_BYTE HASSERTs unless byte 0 of the config file is 2.
+  FILE *f = fopen("/spiffs/openlcb_config", "r+");
+  if (!f) {
+    return;
+  }
+  const uint8_t ver = 2;
+  if (fseek(f, 0, SEEK_SET) == 0) {
+    (void)fwrite(&ver, 1, 1, f);
+  }
+  fclose(f);
+}
+
 static void start_openmrn(void) {
   openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
   openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
                                                 openlcb::CANONICAL_VERSION,
                                                 openlcb::CONFIG_FILE_SIZE);
+  force_acdi_user_version();
   openmrn.begin();
   lcc_events.add_entry(evt_throw(0), openlcb::CallbackEventHandler::IS_CONSUMER);
   lcc_events.add_entry(evt_close(0), openlcb::CallbackEventHandler::IS_CONSUMER);
@@ -187,7 +201,13 @@ void setup() {
   }
   Serial.println(F("LccWifiTurnoutNode RR_WIFI_LCC OpenMRNLite GridConnect"));
   Serial.print(F("firmware "));
-  Serial.println(F(RR_GIT_VERSION_STR(RR_GIT_VERSION)));
+  Serial.println(F(RR_GIT_VERSION_LITERAL));
+  Serial.print(F("SNIP "));
+  Serial.print(openlcb::SNIP_STATIC_DATA.manufacturer_name);
+  Serial.print(F(" / "));
+  Serial.print(openlcb::SNIP_STATIC_DATA.model_name);
+  Serial.print(F(" / "));
+  Serial.println(openlcb::SNIP_STATIC_DATA.software_version);
   nvs_flash_init();
   print_debug_ids();
   load_wifi_creds();
