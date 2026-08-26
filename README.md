@@ -32,7 +32,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
 - Mega serial bring-up: `sketches/TurnoutBringup` (DEBUG-off 45–135–90 cycle)
 - Mega **KS0258 ch0 + ch1** proven with JMRI (**v1.02**): `sketches/LccTurnoutNode`
   - Snowball Creek **Rev 4 MCP2518** (ACAN2517), not MCP2515
-  - Node **05.01.01.01.A5.02** (OwlThree; `.A5.01` is the D1 R32 display). Next free **`.A5.03`**
+  - Node **05.01.01.01.A5.02** (OwlThree; `.A5.01` D1 R32 display, `.A5.03` D1 R32 servo Wi-Fi, `.A5.04` S3 panel). Next free **`.A5.05`**
   - Power-up: hold 90° 1 s, one 45→135→45→90 sweep, then hold 90° until LCC
   - JMRI panel (Mega only): [docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml](docs/jmri/Layout-2026-08-20-For_Mega_Two_Servos.xml)
   - JMRI panel (Mega + ESP32 loop): [docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml](docs/jmri/Layout-2026-08-24-For_Mega_ESP32_Loop.xml)
@@ -42,7 +42,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
-- **This branch (`wemos-d1r32`, tag `v2.06`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.05` clean, `v2.05+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` still aborts, so the node does **not** yet list in LCC Pro. Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image.
+- **This branch (`wemos-d1r32`, tag `v2.06`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.06` clean, `v2.06+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` is **up**; LCC Pro lists this node. Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image. JMRI LCC Buffer must be the RR-CirKits STM32 (`/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00` or `/dev/rrcirkits-lcc`), never the Mega.
 
 ## Electrical stacks (keep separate)
 
