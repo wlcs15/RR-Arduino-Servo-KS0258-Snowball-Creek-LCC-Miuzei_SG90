@@ -158,6 +158,21 @@ def generator_and_env():
     return "Unix Makefiles", env
 
 
+def _cmake_path(path):
+    """Forward slashes so CMake does not treat \\P in Program Files as an escape."""
+    return os.path.abspath(path).replace("\\", "/")
+
+
+def _shell_join(cmd):
+    parts = []
+    for arg in cmd:
+        if (" " in arg) or ("\t" in arg):
+            parts.append('"%s"' % arg)
+        else:
+            parts.append(arg)
+    return " ".join(parts)
+
+
 def _read_cache_kv(cache_text, key):
     prefix = key + "="
     for line in cache_text.splitlines():
@@ -211,8 +226,8 @@ def cmake_configure(build_dir, coverage=False):
         "-G",
         gen,
         "-DCMAKE_BUILD_TYPE=Debug",
-        "-DCMAKE_C_COMPILER=" + clang,
-        "-DCMAKE_CXX_COMPILER=" + clangxx,
+        "-DCMAKE_C_COMPILER=" + _cmake_path(clang),
+        "-DCMAKE_CXX_COMPILER=" + _cmake_path(clangxx),
         "-DRR_ENABLE_COVERAGE=" + ("ON" if coverage else "OFF"),
     ]
     if os.name == "nt":
@@ -223,9 +238,10 @@ def cmake_configure(build_dir, coverage=False):
                 "Install Windows 10/11 SDK (Visual Studio Build Tools) or LLVM. "
                 "Not MinGW windres."
             )
-        cmd.append("-DCMAKE_RC_COMPILER=" + rc)
-        print("CMAKE_RC_COMPILER=%s" % rc)
-    print(" ".join(cmd))
+        rc_cmake = _cmake_path(rc)
+        cmd.append("-DCMAKE_RC_COMPILER:FILEPATH=" + rc_cmake)
+        print('CMAKE_RC_COMPILER="%s"' % rc_cmake)
+    print(_shell_join(cmd))
     subprocess.check_call(cmd, env=env)
     return env
 
@@ -235,7 +251,7 @@ def cmake_build(build_dir, env, target=None):
     cmd = [cmake, "--build", build_dir]
     if target:
         cmd.extend(["--target", target])
-    print(" ".join(cmd))
+    print(_shell_join(cmd))
     subprocess.check_call(cmd, env=env)
 
 

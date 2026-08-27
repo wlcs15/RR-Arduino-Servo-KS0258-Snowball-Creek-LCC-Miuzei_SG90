@@ -49,7 +49,8 @@ Required for host Unity + DEBUG CLI
     Linux:   Ninja or Unix make
   Windows host also needs CMAKE_RC_COMPILER:
     Windows SDK rc.exe (preferred) or LLVM llvm-rc.exe. Not MinGW windres.
-    build_host.py sets -DCMAKE_RC_COMPILER= when it finds one.
+    build_host.py sets -DCMAKE_RC_COMPILER:FILEPATH= with a quoted
+    forward-slash path (C:/Program Files (x86)/.../rc.exe), not \P.
 
 Host entry: python scripts/build_host.py
 
@@ -90,9 +91,10 @@ Optional (quality / coverage / serial / wrap)
   lizard                       python -u scripts/run_lizard.py
                                pipx install lizard
                                (or: python -m pip install lizard)
-                               Do not use pip --user (blocked on Ubuntu 24.04
-                               and Microsoft Store Python). check_tools and
-                               run_lizard.py share the same pipx/module lookup.
+                               Never pip install --user (fails in a venv:
+                               "User site-packages are not visible").
+                               check_tools and run_lizard.py share the same
+                               pipx/module lookup.
   cppcheck                     scripts/run_cppcheck.sh
   clang-tidy                   scripts/run_clang_tidy.sh
   oclint                       Linux only; skipped on Windows
@@ -120,4 +122,4 @@ Typical install (Windows 11)
     https://github.com/arduino/arduino-cli/releases/latest
   pipx install lizard
   python -m pip install cryptography pyserial
-  (do not use pip --user)
+  Never: pip install --user (fails in a venv)

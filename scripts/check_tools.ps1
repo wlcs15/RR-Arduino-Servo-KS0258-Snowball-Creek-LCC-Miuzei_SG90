@@ -165,7 +165,7 @@ if (-not $rc) {
 }
 $llvmRc = Find-Cmd @("llvm-rc") @($LlvmBin)
 if ($rc) {
-    Write-Ok "rc.exe" "$rc  (CMAKE_RC_COMPILER; Windows SDK)"
+    Write-Ok "rc.exe" ('"{0}"' -f ($rc -replace '\\','/'))
 } elseif ($llvmRc) {
     Write-Ok "llvm-rc" "$llvmRc  (CMAKE_RC_COMPILER fallback)"
 } else {
@@ -290,7 +290,7 @@ if ($py) {
     if ($LASTEXITCODE -eq 0 -and $lizardCheck -match "OK") {
         Write-Ok "lizard" ($lizardCheck.Trim())
     } else {
-        Write-Warn "lizard" "pipx install lizard  (or $py -m pip install lizard; not pip --user)"
+        Write-Warn "lizard" "pipx install lizard  OR  python -m pip install lizard  (never pip --user; fails in a venv)"
     }
     & $py -c "import cryptography" 2>$null
     if ($LASTEXITCODE -eq 0) {

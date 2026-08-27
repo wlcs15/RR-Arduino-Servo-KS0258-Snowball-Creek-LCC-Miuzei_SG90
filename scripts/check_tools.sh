@@ -164,7 +164,7 @@ fi
 if [[ -n "$py" ]] && "$py" -u "$root/scripts/run_lizard.py" --check >/dev/null 2>&1; then
   ok lizard "$("$py" -u "$root/scripts/run_lizard.py" --check 2>/dev/null | head -n1)"
 else
-  warn lizard "pipx install lizard  (or $py -m pip install lizard; not pip --user)"
+  warn lizard "pipx install lizard  OR  python -m pip install lizard  (never pip --user; fails in a venv)"
 fi
 
 if have_cmd cppcheck; then

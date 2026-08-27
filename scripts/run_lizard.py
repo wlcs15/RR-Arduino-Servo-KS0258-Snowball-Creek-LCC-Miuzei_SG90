@@ -78,15 +78,33 @@ def load_lizard():
     return None
 
 
+def _in_venv():
+    if os.environ.get("VIRTUAL_ENV"):
+        return True
+    base = getattr(sys, "base_prefix", None) or getattr(sys, "real_prefix", None)
+    if base:
+        return os.path.normcase(sys.prefix) != os.path.normcase(base)
+    return False
+
+
 def _die_missing_lizard():
     sys.stderr.write(
         "lizard is not importable in this Python:\n  %s\n"
-        "Install into THIS interpreter (do not use pip --user):\n"
-        "  %s -m pip install lizard\n"
-        "If that is blocked (PEP 668 / Microsoft Store Python):\n"
-        "  pipx install lizard\n"
-        % (sys.executable, sys.executable)
+        "Do NOT run:  pip install --user lizard\n"
+        "  (fails in a venv: User site-packages are not visible in this virtualenv)\n"
+        % sys.executable
     )
+    if _in_venv():
+        sys.stderr.write(
+            "This is a virtualenv. Install into it (no --user):\n"
+            "  python -m pip install lizard\n"
+        )
+    else:
+        sys.stderr.write(
+            "Install with pipx (recommended) or into this interpreter:\n"
+            "  pipx install lizard\n"
+            "  python -m pip install lizard\n"
+        )
     raise SystemExit(1)
 
 CCN_LIMIT = 10
