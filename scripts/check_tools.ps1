@@ -81,6 +81,7 @@ $HomeDir = $env:USERPROFILE
 $LlvmBin = Join-Path $Pf "LLVM\bin"
 $CmakeBin = Join-Path $Pf "CMake\bin"
 $ArduinoIdeCli = Join-Path $Pf "Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"
+$ArduinoIdeLocal = Join-Path $env:LOCALAPPDATA "Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe"
 $ExInstallerCli = Join-Path $HomeDir "ex-installer\arduino-cli\arduino-cli.exe"
 
 function Find-Nmake {
@@ -156,11 +157,13 @@ Write-Host "=== Firmware (required for Mega / ESP32 sketches) ==="
 
 $cli = Find-Cmd @("arduino-cli") @(
     (Split-Path -Parent $ExInstallerCli),
-    (Split-Path -Parent $ArduinoIdeCli)
+    (Split-Path -Parent $ArduinoIdeCli),
+    (Split-Path -Parent $ArduinoIdeLocal)
 )
 if (-not $cli) {
     if (Test-Path -LiteralPath $ExInstallerCli) { $cli = $ExInstallerCli }
     elseif (Test-Path -LiteralPath $ArduinoIdeCli) { $cli = $ArduinoIdeCli }
+    elseif (Test-Path -LiteralPath $ArduinoIdeLocal) { $cli = $ArduinoIdeLocal }
 }
 
 # Do not use `arduino-cli lib list` alone. Arduino IDE / OneDrive Documents

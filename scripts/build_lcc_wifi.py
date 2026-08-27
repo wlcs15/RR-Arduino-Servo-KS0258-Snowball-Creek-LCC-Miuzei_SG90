@@ -18,25 +18,17 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import find_arduino  # pylint: disable=wrong-import-position
 import git_version  # pylint: disable=wrong-import-position
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKETCH = os.path.join(ROOT, "sketches", "LccWifiTurnoutNode")
 WRAP = os.path.join(SKETCH, "wifi_psk_wrap.inc")
 FQBN = "esp32:esp32:d1_uno32"
-CLI_CANDIDATES = [
-    os.path.expandvars(r"%USERPROFILE%\ex-installer\arduino-cli\arduino-cli.exe"),
-    os.path.join(os.path.expanduser("~"), "ex-installer", "arduino-cli", "arduino-cli.exe"),
-    "arduino-cli",
-]
-
-
 def find_cli():
-    for cand in CLI_CANDIDATES:
-        if cand == "arduino-cli":
-            return cand
-        if os.path.isfile(cand):
-            return cand
+    found = find_arduino.find_cli()
+    if found:
+        return found
     return "arduino-cli"
 
 

@@ -103,24 +103,51 @@ def _cli_candidate_paths():
         add(_which(n))
     add(os.path.join(home, "ex-installer", "arduino-cli", "arduino-cli.exe"))
     add(os.path.join(home, "ex-installer", "arduino-cli", "arduino-cli"))
-    add(
-        os.path.join(
-            pf,
-            "Arduino IDE",
-            "resources",
-            "app",
-            "lib",
-            "backend",
-            "resources",
-            "arduino-cli.exe",
+    def add_ide_cli(root):
+        add(
+            os.path.join(
+                root,
+                "Arduino IDE",
+                "resources",
+                "app",
+                "lib",
+                "backend",
+                "resources",
+                "arduino-cli.exe",
+            )
         )
-    )
+
+    add_ide_cli(pf)
+    pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    add_ide_cli(pf86)
+    local = os.environ.get("LOCALAPPDATA") or os.path.join(home, "AppData", "Local")
+    add_ide_cli(os.path.join(local, "Programs"))
+    add_ide_cli(local)
+    try:
+        programs = os.path.join(local, "Programs")
+        if os.path.isdir(programs):
+            for ent in os.listdir(programs):
+                if "arduino" in ent.lower():
+                    add_ide_cli(os.path.join(programs, ent))
+                    add(
+                        os.path.join(
+                            programs,
+                            ent,
+                            "resources",
+                            "app",
+                            "lib",
+                            "backend",
+                            "resources",
+                            "arduino-cli.exe",
+                        )
+                    )
+    except OSError:
+        pass
     add(os.path.join(home, "scoop", "shims", "arduino-cli.exe"))
     add(os.path.join(home, "scoop", "apps", "arduino-cli", "current", "arduino-cli.exe"))
     add(os.path.join(home, "bin", "arduino-cli"))
     add("/usr/local/bin/arduino-cli")
     add("/usr/bin/arduino-cli")
-    local = os.environ.get("LOCALAPPDATA") or os.path.join(home, "AppData", "Local")
     add(os.path.join(local, "Arduino15", "arduino-cli.exe"))
     return found
 
@@ -193,6 +220,63 @@ def _run(cmd):
     return out
 
 
+def _yaml_dir_user(path):
+    """directories.user from an arduino-cli.yaml (no PyYAML)."""
+    try:
+        with open(path, "r") as fh:
+            text = fh.read()
+    except OSError:
+        return None
+    in_dirs = False
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+        if stripped.startswith("directories:"):
+            in_dirs = True
+            continue
+        if in_dirs:
+            if line and not line[:1].isspace() and not stripped.startswith("#"):
+                in_dirs = False
+            elif stripped.startswith("user:"):
+                val = stripped.split(":", 1)[1].strip().strip("\"'")
+                if val:
+                    return val
+    return None
+
+
+def _preferences_sketchbook(path):
+    try:
+        with open(path, "r") as fh:
+            for line in fh:
+                if line.lower().startswith("sketchbook.path="):
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        return None
+    return None
+
+
+def extra_sketchbook_dirs():
+    """IDE 2 ~/.arduinoIDE yaml and Arduino15/preferences.txt sketchbook."""
+    home = _home()
+    local = os.environ.get("LOCALAPPDATA") or os.path.join(home, "AppData", "Local")
+    files = [
+        os.path.join(home, ".arduinoIDE", "arduino-cli.yaml"),
+        os.path.join(local, "Arduino15", "arduino-cli.yaml"),
+        os.path.join(home, ".arduino15", "arduino-cli.yaml"),
+        os.path.join(local, "Arduino15", "preferences.txt"),
+        os.path.join(home, ".arduino15", "preferences.txt"),
+    ]
+    found = []
+    for path in files:
+        if path.endswith(".yaml"):
+            user = _yaml_dir_user(path)
+        else:
+            user = _preferences_sketchbook(path)
+        if user and os.path.isdir(user) and user not in found:
+            found.append(user)
+    return found
+
+
 def cli_dirs(cli):
     data = None
     user = None
@@ -231,6 +315,8 @@ def user_dir_candidates(cli_user):
             add(os.path.join(base, "Arduino"))
     except OSError:
         pass
+    for extra in extra_sketchbook_dirs():
+        add(extra)
     return out
 
 
@@ -263,8 +349,20 @@ def _lib_name_from_properties(path):
     return None
 
 
+def _names_match(want, got):
+    """LibLCC vs liblcc-arduino, M95_EEPROM vs M95-EEPROM, etc."""
+    w = _norm(want)
+    g = _norm(got or "")
+    if not w or not g:
+        return False
+    if w == g:
+        return True
+    if w in g or g in w:
+        return True
+    return False
+
+
 def find_library(name, user_dirs):
-    want = _norm(name)
     for user in user_dirs:
         libroot = os.path.join(user, "libraries")
         if not os.path.isdir(libroot):
@@ -280,12 +378,12 @@ def find_library(name, user_dirs):
             folder = os.path.join(libroot, ent)
             if not os.path.isdir(folder):
                 continue
-            if _norm(ent) == want:
+            if _names_match(name, ent):
                 return folder
             prop = _lib_name_from_properties(
                 os.path.join(folder, "library.properties")
             )
-            if prop and _norm(prop) == want:
+            if prop and _names_match(name, prop):
                 return folder
     return None
 
@@ -322,6 +420,11 @@ def inspect():
     cores = {}
     for fqbn, pair in REQUIRED_CORES:
         cores[fqbn] = find_core(pair[0], pair[1], datas)
+    lib_roots = []
+    for user in users:
+        root = os.path.join(user, "libraries")
+        if os.path.isdir(root) and root not in lib_roots:
+            lib_roots.append(root)
     return {
         "cli": cli,
         "cli_version": copies[0]["version"] if copies else None,
@@ -329,6 +432,7 @@ def inspect():
         "cli_latest": latest,
         "user_dirs": users,
         "data_dirs": datas,
+        "lib_roots": lib_roots,
         "libs": libs,
         "cores": cores,
     }
@@ -382,6 +486,13 @@ def cli_status_lines(info):
             "  WARN     arduino-cli-latest could not query GitHub for latest stable"
         )
 
+    if not _which("arduino-cli") and not _which("arduino-cli.exe"):
+        lines.append(
+            "  WARN     arduino-cli-path   not on PATH; clones still find %s. "
+            "Add that folder to PATH for a plain arduino-cli command."
+            % path
+        )
+
     for copy in copies[1:]:
         if copy["tuple"] < best["tuple"]:
             lines.append(
@@ -416,6 +527,12 @@ def main():
             print("  %s" % d)
     else:
         print("  (none exist yet)")
+    print("library folders searched:")
+    if info.get("lib_roots"):
+        for d in info["lib_roots"]:
+            print("  %s" % d)
+    else:
+        print("  (none exist yet)")
     print("data dirs:")
     if info["data_dirs"]:
         for d in info["data_dirs"]:
@@ -437,9 +554,12 @@ def main():
         if path:
             print("  OK       lib %-14s %s" % (name, path))
         else:
+            roots = info.get("lib_roots") or []
+            where = "; ".join(roots) if roots else "(no Arduino/libraries folders yet)"
             print(
-                "  MISSING  lib %-14s not in Arduino/libraries (no uninstall)"
-                % name
+                "  MISSING  lib %-14s not under: %s  "
+                "(arduino-cli lib search %s  then  lib install). Do not uninstall."
+                % (name, where, name)
             )
             missing = 1
     copies = info.get("cli_copies") or []

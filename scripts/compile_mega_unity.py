@@ -17,20 +17,14 @@ FQBN = "arduino:avr:mega:cpu=atmega2560"
 SKETCH = os.path.join(ROOT, "sketches", "RrServoUnity")
 WRAP = os.path.join(ROOT, "scripts", "avr_cc_wrap.py")
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import find_arduino  # pylint: disable=wrong-import-position
+
 
 def arduino_cli():
-    bundled = os.path.join(
-        os.environ.get("ProgramFiles", r"C:\Program Files"),
-        "Arduino IDE",
-        "resources",
-        "app",
-        "lib",
-        "backend",
-        "resources",
-        "arduino-cli.exe",
-    )
-    if os.path.isfile(bundled):
-        return bundled
+    found = find_arduino.find_cli()
+    if found:
+        return found
     return "arduino-cli"
 
 

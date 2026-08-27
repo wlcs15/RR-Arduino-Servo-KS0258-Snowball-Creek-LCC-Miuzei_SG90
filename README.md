@@ -247,13 +247,29 @@ python -u scripts\find_arduino.py
 
 Each run writes `local\check_tools-last.log` (gitignored). Attach that file to share a Windows box that has no Grok CLI.
 
+`arduino-cli` does **not** have to be on PATH. The checker and the compile scripts look in Arduino IDE (Program Files and `%LOCALAPPDATA%\Programs`), `ex-installer`, and scoop. If it is found but not on PATH, that is a **WARN** (`arduino-cli-path`); clones still compile. To run `arduino-cli` yourself, use the path printed by the checker, or add that folder to PATH.
+
+Arduino Library Manager names do not always match the folder on disk (example: **LibLCC** vs `liblcc-arduino`). On the Dell XPS17 the working sequence was:
+
+```bat
+arduino-cli lib search LibLCC
+arduino-cli lib search ACAN2517
+arduino-cli lib search ACAN2515
+arduino-cli lib search M95_EEPROM
+arduino-cli lib search OpenMRNLite
+arduino-cli lib search ESP32Servo
+arduino-cli lib install LibLCC ACAN2517 ACAN2515 M95_EEPROM OpenMRNLite ESP32Servo
+```
+
+If `arduino-cli` is not on PATH, prefix the same commands with the full `arduino-cli.exe` path from the checker (quotes around the path). Then `python -u scripts\find_arduino.py` lists the `libraries` folders it searched. Do not uninstall a library that is already there.
+
 Ubuntu:
 
 ```bash
 ./scripts/check_tools.sh
 ```
 
-Host: Git, Python 3, CMake 3.10+, LLVM Clang (not MinGW / not `cl.exe`), and Ninja or `nmake` (Windows) / `make` (Linux). Firmware: **Arduino CLI 1.0+** (searches PATH, `ex-installer`, and the Arduino IDE copy; uses the newest; **WARN** if behind GitHub latest stable), plus cores `arduino:avr` and `esp32:esp32`, and the Library Manager packages in the `.txt`. Then `git submodule update --init --recursive` (Unity).
+Host: Git, Python 3, CMake 3.10+, LLVM Clang (not MinGW / not `cl.exe`), and Ninja or `nmake` (Windows) / `make` (Linux). Firmware: **Arduino CLI 1.0+** (searches PATH, `ex-installer`, Arduino IDE, and `%LOCALAPPDATA%\Programs`; uses the newest; **WARN** if behind GitHub latest stable or not on PATH), plus cores `arduino:avr` and `esp32:esp32`, and the Library Manager packages in the `.txt`. Then `git submodule update --init --recursive` (Unity).
 
 ## Reserved pins (all Arduino-footprint boards)
 

@@ -66,9 +66,19 @@ Arduino Library Manager (once per PC; not in git):
   Mega LCC:     LibLCC, ACAN2517, ACAN2515, M95_EEPROM
   ESP32 Wi-Fi:  OpenMRNLite, ESP32Servo
 
+  Folder names on disk may differ (LibLCC vs liblcc-arduino). Search first,
+  then install the listed name. Dell XPS17 Win11 needed this:
+
+  arduino-cli lib search LibLCC
+  arduino-cli lib search ESP32Servo
+  arduino-cli lib install LibLCC ACAN2517 ACAN2515 M95_EEPROM OpenMRNLite ESP32Servo
+
+  If arduino-cli is not on PATH, use the full path printed by check_tools
+  (Arduino IDE bundled CLI is enough). find_arduino.py prints the
+  libraries folders it searched (Documents, OneDrive, IDE sketchbook).
+
   arduino-cli core install arduino:avr
   arduino-cli core install esp32:esp32
-  arduino-cli lib install LibLCC ACAN2517 ACAN2515 M95_EEPROM OpenMRNLite ESP32Servo
 
 
 Optional (quality / coverage / serial / wrap)

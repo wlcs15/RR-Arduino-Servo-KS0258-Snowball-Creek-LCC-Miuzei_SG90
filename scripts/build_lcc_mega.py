@@ -13,6 +13,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import find_arduino  # pylint: disable=wrong-import-position
 import git_version  # pylint: disable=wrong-import-position
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -21,13 +22,9 @@ FQBN = "arduino:avr:mega:cpu=atmega2560"
 
 
 def find_cli():
-    for cand in (
-        os.path.expandvars(r"%USERPROFILE%\ex-installer\arduino-cli\arduino-cli.exe"),
-        os.path.join(os.path.expanduser("~"), "ex-installer", "arduino-cli", "arduino-cli.exe"),
-        "arduino-cli",
-    ):
-        if cand == "arduino-cli" or os.path.isfile(cand):
-            return cand
+    found = find_arduino.find_cli()
+    if found:
+        return found
     return "arduino-cli"
 
 
