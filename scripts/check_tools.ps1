@@ -152,6 +152,26 @@ if (Test-Path -LiteralPath $unity) {
     Write-Fail "Unity" "git submodule update --init --recursive"
 }
 
+$rc = Find-Cmd @("rc") @()
+if (-not $rc) {
+    $kitBin = Join-Path $Pf86 "Windows Kits\10\bin"
+    if (Test-Path -LiteralPath $kitBin) {
+        $vers = Get-ChildItem -Path $kitBin -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
+        foreach ($v in $vers) {
+            $cand = Join-Path $v.FullName "x64\rc.exe"
+            if (Test-Path -LiteralPath $cand) { $rc = $cand; break }
+        }
+    }
+}
+$llvmRc = Find-Cmd @("llvm-rc") @($LlvmBin)
+if ($rc) {
+    Write-Ok "rc.exe" "$rc  (CMAKE_RC_COMPILER; Windows SDK)"
+} elseif ($llvmRc) {
+    Write-Ok "llvm-rc" "$llvmRc  (CMAKE_RC_COMPILER fallback)"
+} else {
+    Write-Fail "rc.exe" "Windows SDK rc.exe or LLVM llvm-rc (CMake host build). Not MinGW windres."
+}
+
 Write-Host ""
 Write-Host "=== Firmware (required for Mega / ESP32 sketches) ==="
 
@@ -266,11 +286,11 @@ if ($llvmCov -and $llvmProf) {
 }
 
 if ($py) {
-    & $py -c "import lizard" 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Ok "lizard" "python module (scripts/run_lizard.py)"
+    $lizardCheck = & $py -u (Join-Path $Root "scripts\run_lizard.py") --check 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0 -and $lizardCheck -match "OK") {
+        Write-Ok "lizard" ($lizardCheck.Trim())
     } else {
-        Write-Warn "lizard" "pip install lizard  (or pipx install lizard)"
+        Write-Warn "lizard" "pipx install lizard  (or $py -m pip install lizard; not pip --user)"
     }
     & $py -c "import cryptography" 2>$null
     if ($LASTEXITCODE -eq 0) {

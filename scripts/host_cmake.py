@@ -48,6 +48,65 @@ def require(name, extra=""):
     return path
 
 
+def find_rc():
+    """Windows resource compiler. CMake+Clang needs CMAKE_RC_COMPILER.
+
+    Prefer Windows SDK rc.exe (not MinGW windres). llvm-rc is the fallback.
+    """
+    if os.name != "nt":
+        return None
+    found = _which("rc")
+    if found:
+        return found
+    pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+    kit_roots = [
+        os.path.join(pf86, "Windows Kits", "10", "bin"),
+        os.path.join(pf, "Windows Kits", "10", "bin"),
+    ]
+    versions = []
+    for kits in kit_roots:
+        if not os.path.isdir(kits):
+            continue
+        try:
+            names = os.listdir(kits)
+        except OSError:
+            names = []
+        for name in names:
+            cand = os.path.join(kits, name, "x64", "rc.exe")
+            if os.path.isfile(cand):
+                versions.append(cand)
+    if versions:
+        versions.sort(reverse=True)
+        return versions[0]
+    vswhere = _which("vswhere")
+    if not vswhere:
+        vswhere = os.path.join(pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe")
+        if not os.path.isfile(vswhere):
+            vswhere = None
+    if vswhere:
+        try:
+            out = subprocess.check_output(
+                [vswhere, "-latest", "-products", "*", "-find", r"**\rc.exe"],
+                universal_newlines=True,
+            )
+        except (OSError, subprocess.CalledProcessError):
+            out = ""
+        lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
+        x64 = [ln for ln in lines if ln.lower().endswith(os.path.join("x64", "rc.exe").lower())]
+        if x64:
+            return x64[0]
+        if lines:
+            return lines[0]
+    llvm_rc = _which("llvm-rc")
+    if llvm_rc:
+        return llvm_rc
+    llvm_bin = os.path.join(pf, "LLVM", "bin", "llvm-rc.exe")
+    if os.path.isfile(llvm_bin):
+        return llvm_bin
+    return None
+
+
 def find_nmake():
     found = _which("nmake")
     if found:
@@ -78,6 +137,9 @@ def generator_and_env():
     """Return (generator, extra_env) for a single-config Clang host build."""
     env = os.environ.copy()
     if os.name == "nt":
+        rc = find_rc()
+        if rc:
+            env["PATH"] = os.path.dirname(rc) + os.pathsep + env.get("PATH", "")
         ninja = _which("ninja")
         if ninja:
             return "Ninja", env
@@ -153,6 +215,16 @@ def cmake_configure(build_dir, coverage=False):
         "-DCMAKE_CXX_COMPILER=" + clangxx,
         "-DRR_ENABLE_COVERAGE=" + ("ON" if coverage else "OFF"),
     ]
+    if os.name == "nt":
+        rc = find_rc()
+        if not rc:
+            raise SystemExit(
+                "CMAKE_RC_COMPILER: need Windows SDK rc.exe or LLVM llvm-rc. "
+                "Install Windows 10/11 SDK (Visual Studio Build Tools) or LLVM. "
+                "Not MinGW windres."
+            )
+        cmd.append("-DCMAKE_RC_COMPILER=" + rc)
+        print("CMAKE_RC_COMPILER=%s" % rc)
     print(" ".join(cmd))
     subprocess.check_call(cmd, env=env)
     return env

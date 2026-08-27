@@ -20,6 +20,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import find_arduino  # pylint: disable=wrong-import-position
 import git_version  # pylint: disable=wrong-import-position
+import session_log  # pylint: disable=wrong-import-position
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKETCH = os.path.join(ROOT, "sketches", "LccWifiTurnoutNode")
@@ -64,6 +65,7 @@ def run_logged(cmd, title):
 
 
 def main():
+    session_log.attach("build_lcc_wifi")
     if os.environ.get("WIFI_PASSWORD"):
         sys.stderr.write(
             "WIFI_PASSWORD is set. Unset it. This script never reads a PSK.\n"

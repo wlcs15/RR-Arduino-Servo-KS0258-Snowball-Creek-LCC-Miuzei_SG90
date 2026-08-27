@@ -4,7 +4,10 @@ from __future__ import print_function
 
 import sys
 
+import session_log
 from host_cmake import HOST_BUILD, cmake_build, cmake_configure, host_exe, tests_exe
+
+session_log.attach("build_host")
 
 
 def main():

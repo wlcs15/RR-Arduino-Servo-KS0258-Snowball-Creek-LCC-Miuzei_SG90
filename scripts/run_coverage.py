@@ -12,7 +12,10 @@ from __future__ import print_function
 import os
 import sys
 
+import session_log
 from host_cmake import COVERAGE_BUILD, cmake_build, cmake_configure, require
+
+session_log.attach("run_coverage")
 
 
 def main():

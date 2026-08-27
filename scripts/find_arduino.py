@@ -503,6 +503,12 @@ def cli_status_lines(info):
 
 
 def main():
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import session_log
+        session_log.attach("find_arduino")
+    except Exception:
+        pass
     json_mode = "--json" in sys.argv
     info = inspect()
     if json_mode:

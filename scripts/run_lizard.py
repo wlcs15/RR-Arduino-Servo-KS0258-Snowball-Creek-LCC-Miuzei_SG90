@@ -7,33 +7,87 @@ Arduino .ino files are analyzed as C++.
 from __future__ import print_function
 
 import os
+import shutil
 import sys
 
-def _import_lizard():
+
+def _venv_site_packages(venv_root):
+    sites = []
+    if not venv_root or not os.path.isdir(venv_root):
+        return sites
+    for dirpath, dirnames, _filenames in os.walk(venv_root):
+        if os.path.basename(dirpath).lower() == "site-packages":
+            sites.append(dirpath)
+            dirnames[:] = []
+    return sites
+
+
+def _pipx_venv_roots():
+    home = os.path.expanduser("~")
+    local = os.environ.get("LOCALAPPDATA") or os.path.join(home, "AppData", "Local")
+    roots = []
+    pipx_home = os.environ.get("PIPX_HOME")
+    if pipx_home:
+        roots.append(os.path.join(pipx_home, "venvs", "lizard"))
+    roots.extend(
+        [
+            os.path.join(home, ".local", "share", "pipx", "venvs", "lizard"),
+            os.path.join(home, ".local", "pipx", "venvs", "lizard"),
+            os.path.join(home, "pipx", "venvs", "lizard"),
+            os.path.join(local, "pipx", "venvs", "lizard"),
+            os.path.join(home, "scoop", "persist", "pipx", "venvs", "lizard"),
+        ]
+    )
+    return roots
+
+
+def load_lizard():
+    """Import lizard from this Python, then pipx venvs (Windows + Linux).
+
+    Do not require pip --user (blocked on Ubuntu 24.04 and Store Python).
+    """
     try:
         import lizard as mod
+
         return mod
     except ImportError:
         pass
-    # Ubuntu 24.04 PEP 668 blocks `pip install --user`; pipx is the fallback.
-    pipx_lib = os.path.expanduser("~/.local/share/pipx/venvs/lizard/lib")
-    if os.path.isdir(pipx_lib):
-        for dirpath, dirnames, filenames in os.walk(pipx_lib):
-            if os.path.basename(dirpath) == "site-packages":
-                sys.path.insert(0, dirpath)
-                break
+
+    sites = []
+    exe = shutil.which("lizard")
+    if exe:
+        bindir = os.path.dirname(os.path.abspath(exe))
+        sites.extend(_venv_site_packages(os.path.dirname(bindir)))
+    for root in _pipx_venv_roots():
+        sites.extend(_venv_site_packages(root))
+
+    seen = set()
+    for site in sites:
+        key = os.path.normcase(os.path.abspath(site))
+        if key in seen:
+            continue
+        seen.add(key)
+        if site not in sys.path:
+            sys.path.insert(0, site)
         try:
             import lizard as mod
+
             return mod
         except ImportError:
-            pass
+            continue
+    return None
+
+
+def _die_missing_lizard():
     sys.stderr.write(
-        "lizard not installed (pipx install lizard, or pip install --user lizard)\n"
+        "lizard is not importable in this Python:\n  %s\n"
+        "Install into THIS interpreter (do not use pip --user):\n"
+        "  %s -m pip install lizard\n"
+        "If that is blocked (PEP 668 / Microsoft Store Python):\n"
+        "  pipx install lizard\n"
+        % (sys.executable, sys.executable)
     )
-    sys.exit(1)
-
-
-lizard = _import_lizard()
+    raise SystemExit(1)
 
 CCN_LIMIT = 10
 ROOT_DIRS = ("lib", "sketches", "tests", "host")
@@ -71,7 +125,7 @@ def iter_sources(root):
                     yield os.path.join(dirpath, name)
 
 
-def analyze_file(path):
+def analyze_file(path, lizard):
     with open(path, "r", encoding="utf-8", errors="replace") as handle:
         code = handle.read()
     as_name = path + ".cpp" if path.lower().endswith(".ino") else path
@@ -82,13 +136,28 @@ def analyze_file(path):
 
 
 def main():
+    if "--check" in sys.argv:
+        mod = load_lizard()
+        if not mod:
+            print("MISSING lizard")
+            return 1
+        print("OK %s" % getattr(mod, "__file__", "lizard"))
+        return 0
+    try:
+        import session_log
+        session_log.attach("run_lizard")
+    except Exception:
+        pass
+    lizard = load_lizard()
+    if not lizard:
+        _die_missing_lizard()
     root = repo_root()
     modules = {}
     over = []
 
     for path in sorted(iter_sources(root)):
         rel = rel_posix(root, path)
-        info = analyze_file(path)
+        info = analyze_file(path, lizard)
         key = module_name(rel)
         bucket = modules.setdefault(
             key,

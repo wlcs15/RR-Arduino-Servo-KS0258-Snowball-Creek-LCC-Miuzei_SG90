@@ -15,6 +15,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import find_arduino  # pylint: disable=wrong-import-position
 import git_version  # pylint: disable=wrong-import-position
+import session_log  # pylint: disable=wrong-import-position
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SKETCH = os.path.join(ROOT, "sketches", "LccTurnoutNode")
@@ -29,6 +30,7 @@ def find_cli():
 
 
 def main():
+    session_log.attach("build_lcc_mega")
     inc = os.path.join(SKETCH, "git_version.inc")
     ver = git_version.write_inc(inc)
     print("SNIP softwareVersion %s" % ver)

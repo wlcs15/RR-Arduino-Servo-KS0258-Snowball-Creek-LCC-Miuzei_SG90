@@ -19,6 +19,7 @@ WRAP = os.path.join(ROOT, "scripts", "avr_cc_wrap.py")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import find_arduino  # pylint: disable=wrong-import-position
+import session_log  # pylint: disable=wrong-import-position
 
 
 def arduino_cli():
@@ -61,6 +62,7 @@ def wrap_recipe(lang):
 
 
 def main():
+    session_log.attach("compile_mega_unity")
     parser = argparse.ArgumentParser()
     parser.add_argument("--coverage", action="store_true")
     parser.add_argument("--upload", action="store_true")

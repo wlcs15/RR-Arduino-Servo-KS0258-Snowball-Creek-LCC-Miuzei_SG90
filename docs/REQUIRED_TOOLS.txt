@@ -47,6 +47,9 @@ Required for host Unity + DEBUG CLI
   A CMake generator:
     Windows: Ninja, or nmake from Visual Studio Build Tools
     Linux:   Ninja or Unix make
+  Windows host also needs CMAKE_RC_COMPILER:
+    Windows SDK rc.exe (preferred) or LLVM llvm-rc.exe. Not MinGW windres.
+    build_host.py sets -DCMAKE_RC_COMPILER= when it finds one.
 
 Host entry: python scripts/build_host.py
 
@@ -84,8 +87,12 @@ Arduino Library Manager (once per PC; not in git):
 Optional (quality / coverage / serial / wrap)
 ---------------------------------------------
   llvm-profdata + llvm-cov     python scripts/run_coverage.py
-  lizard                       python scripts/run_lizard.py
-                               (pipx install lizard, or pip install lizard)
+  lizard                       python -u scripts/run_lizard.py
+                               pipx install lizard
+                               (or: python -m pip install lizard)
+                               Do not use pip --user (blocked on Ubuntu 24.04
+                               and Microsoft Store Python). check_tools and
+                               run_lizard.py share the same pipx/module lookup.
   cppcheck                     scripts/run_cppcheck.sh
   clang-tidy                   scripts/run_clang_tidy.sh
   oclint                       Linux only; skipped on Windows
@@ -111,4 +118,6 @@ Typical install (Windows 11)
   Ninja, or Visual Studio Build Tools (nmake). Not MinGW.
   Arduino CLI 1.0+ (or Arduino IDE, whose bundled CLI is used if newer)
     https://github.com/arduino/arduino-cli/releases/latest
-  pip install lizard cryptography pyserial
+  pipx install lizard
+  python -m pip install cryptography pyserial
+  (do not use pip --user)

@@ -161,10 +161,10 @@ else
   warn llvm-cov "apt install llvm  (python scripts/run_coverage.py)"
 fi
 
-if [[ -n "$py" ]] && "$py" -c "import lizard" >/dev/null 2>&1; then
-  ok lizard "python module (scripts/run_lizard.py)"
+if [[ -n "$py" ]] && "$py" -u "$root/scripts/run_lizard.py" --check >/dev/null 2>&1; then
+  ok lizard "$("$py" -u "$root/scripts/run_lizard.py" --check 2>/dev/null | head -n1)"
 else
-  warn lizard "pipx install lizard  (or pip install lizard)"
+  warn lizard "pipx install lizard  (or $py -m pip install lizard; not pip --user)"
 fi
 
 if have_cmd cppcheck; then
