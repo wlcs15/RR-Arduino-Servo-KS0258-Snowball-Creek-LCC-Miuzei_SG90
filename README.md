@@ -257,6 +257,7 @@ Host and firmware Python builds write the same kind of shareable log (gitignored
 | `python -u scripts\build_lcc_mega.py` | `local\build_lcc_mega-last.log` |
 | `python -u scripts\compile_mega_unity.py` | `local\compile_mega_unity-last.log` |
 | `python -u scripts\find_arduino.py` | `local\find_arduino-last.log` |
+| `python -u scripts\run_lizard.py` | `local\run_lizard-last.log` |
 
 Copy `local\*-last.log` (or the timestamped copy next to it) to the other laptop. **Not** `provision_wifi_build.py` — that script must never log a password.
 
@@ -277,6 +278,8 @@ arduino-cli lib install LibLCC ACAN2517 ACAN2515 M95_EEPROM OpenMRNLite ESP32Ser
 ```
 
 If `arduino-cli` is not on PATH, prefix the same commands with the full `arduino-cli.exe` path from the checker (quotes around the path). Then `python -u scripts\find_arduino.py` lists the `libraries` folders it searched. Do not uninstall a library that is already there.
+
+**lizard on Dell XPS17 (Windows 11) is working.** `check_tools.ps1` and `python -u scripts\run_lizard.py` share one lookup (this Python, then pipx venvs). Never `pip install --user lizard` (fails in a venv: user site-packages are not visible). In a venv use `python -m pip install lizard`; otherwise `pipx install lizard`.
 
 Ubuntu:
 
@@ -312,7 +315,7 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 | --- | --- |
 | **DEBUG** | Firmware and a **host DEBUG CLI** (fake ADC, `t`/`c` commands, print limit/motion). `-DDEBUG`, extra serial/printf, no optimization. Separate from Unity. First Mega bring-up holds every KS0258 channel at **90 deg (1500 us)** on a 0–180 SG90 map (1000/1500/2000 us). **Do not flash that onto a servo whose horn is already at a mechanical stop** (see below). |
 | **Unit Test** | **Unity** (ThrowTheSwitch), git submodule. Same tests on **host** and **on-target** (Mega first). |
-| **Cyclomatic complexity** | **lizard**, report **per module** (`lib/rr_servo`, each sketch, `tests`, `host`). Arduino `.ino` included. **Fail if any function in our code exceeds 10** (McCabe is per-function; module table is NLOC / function count / avg / max CCN). No fail on `third_party/` or other submodules. `python -u scripts/run_lizard.py` (same lookup as check_tools, including pipx). Install with `pipx install lizard` or `python -m pip install lizard`. Never `pip install --user` (fails inside a venv). |
+| **Cyclomatic complexity** | **lizard**, report **per module** (`lib/rr_servo`, each sketch, `tests`, `host`). Arduino `.ino` included. **Fail if any function in our code exceeds 10** (McCabe is per-function; module table is NLOC / function count / avg / max CCN). No fail on `third_party/` or other submodules. `python -u scripts/run_lizard.py` (same lookup as check_tools, including pipx). **Confirmed on Dell XPS17 Windows 11.** Install with `pipx install lizard` or `python -m pip install lizard`. Never `pip install --user` (fails inside a venv). |
 | **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. This target **fails on error-severity only**; warnings are reports. |
 
 Host CMake (C11/C++11, Clang on Ubuntu and Windows 11): `python scripts/build_host.py` or `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Coverage is Clang source-based (`-fprofile-instr-generate -fcoverage-mapping`) plus **llvm-cov** — not gcovr, Ceedling, or MinGW. Usual command: `python scripts/run_coverage.py`. Same tree: `cmake --build build/host-coverage --target coverage`. Report is `lib/rr_servo` only; HTML is `build/host-coverage/coverage/index.html`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). This branch’s ESP32 bring-up is `sketches/TurnoutBringup` with DEBUG on and `RR_USE_KS0258=0`.

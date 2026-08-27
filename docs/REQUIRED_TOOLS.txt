@@ -94,7 +94,8 @@ Optional (quality / coverage / serial / wrap)
                                Never pip install --user (fails in a venv:
                                "User site-packages are not visible").
                                check_tools and run_lizard.py share the same
-                               pipx/module lookup.
+                               pipx/module lookup. Confirmed on Dell XPS17
+                               Windows 11.
   cppcheck                     scripts/run_cppcheck.sh
   clang-tidy                   scripts/run_clang_tidy.sh
   oclint                       Linux only; skipped on Windows
