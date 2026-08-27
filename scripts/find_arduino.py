@@ -17,8 +17,20 @@ from __future__ import print_function
 
 import json
 import os
+import re
 import subprocess
 import sys
+
+try:
+    from urllib.request import Request, urlopen
+except ImportError:
+    Request = None
+    urlopen = None
+
+# Arduino CLI 1.0 (June 2024) is the current major. 0.35.x is the old line.
+MIN_CLI = (1, 0, 0)
+LATEST_URL = "https://api.github.com/repos/arduino/arduino-cli/releases/latest"
+VERSION_RE = re.compile(r"Version:\s*v?([0-9]+(?:\.[0-9]+)*)", re.I)
 
 REQUIRED_LIBS = (
     "LibLCC",
@@ -42,20 +54,58 @@ def _home():
     return os.path.expanduser("~")
 
 
-def find_cli():
-    names = ["arduino-cli"]
-    if os.name == "nt":
-        names = ["arduino-cli.exe", "arduino-cli"]
-    for n in names:
-        path = _which(n)
-        if path:
-            return path
+def _ver_tuple(text):
+    parts = []
+    for bit in (text or "0").split("."):
+        try:
+            parts.append(int(bit))
+        except ValueError:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+
+def parse_cli_version_text(text):
+    match = VERSION_RE.search(text or "")
+    if not match:
+        return None
+    return match.group(1)
+
+
+def cli_version_of(path):
+    if not path:
+        return None
+    text = _run([path, "version"])
+    return parse_cli_version_text(text)
+
+
+def _cli_candidate_paths():
     home = _home()
-    cands = [
-        os.path.join(home, "ex-installer", "arduino-cli", "arduino-cli.exe"),
-        os.path.join(home, "ex-installer", "arduino-cli", "arduino-cli"),
+    pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+    names = ["arduino-cli.exe", "arduino-cli"] if os.name == "nt" else ["arduino-cli"]
+    found = []
+    seen = set()
+
+    def add(path):
+        if not path:
+            return
+        path = os.path.normpath(path)
+        if not os.path.isfile(path):
+            return
+        key = os.path.normcase(os.path.realpath(path))
+        if key in seen:
+            return
+        seen.add(key)
+        found.append(path)
+
+    for n in names:
+        add(_which(n))
+    add(os.path.join(home, "ex-installer", "arduino-cli", "arduino-cli.exe"))
+    add(os.path.join(home, "ex-installer", "arduino-cli", "arduino-cli"))
+    add(
         os.path.join(
-            os.environ.get("ProgramFiles", r"C:\Program Files"),
+            pf,
             "Arduino IDE",
             "resources",
             "app",
@@ -63,15 +113,59 @@ def find_cli():
             "backend",
             "resources",
             "arduino-cli.exe",
-        ),
-        os.path.join(home, "bin", "arduino-cli"),
-        "/usr/local/bin/arduino-cli",
-        "/usr/bin/arduino-cli",
-    ]
-    for p in cands:
-        if p and os.path.isfile(p):
-            return p
-    return None
+        )
+    )
+    add(os.path.join(home, "scoop", "shims", "arduino-cli.exe"))
+    add(os.path.join(home, "scoop", "apps", "arduino-cli", "current", "arduino-cli.exe"))
+    add(os.path.join(home, "bin", "arduino-cli"))
+    add("/usr/local/bin/arduino-cli")
+    add("/usr/bin/arduino-cli")
+    local = os.environ.get("LOCALAPPDATA") or os.path.join(home, "AppData", "Local")
+    add(os.path.join(local, "Arduino15", "arduino-cli.exe"))
+    return found
+
+
+def list_cli_copies():
+    copies = []
+    for path in _cli_candidate_paths():
+        ver = cli_version_of(path) or "0.0.0"
+        copies.append({"path": path, "version": ver, "tuple": _ver_tuple(ver)})
+    copies.sort(key=lambda c: c["tuple"], reverse=True)
+    return copies
+
+
+def find_cli():
+    copies = list_cli_copies()
+    if not copies:
+        return None
+    return copies[0]["path"]
+
+
+def fetch_latest_cli():
+    """Latest stable GitHub tag (no -rc). None if offline or urllib missing."""
+    if Request is None or urlopen is None:
+        return None
+    try:
+        req = Request(
+            LATEST_URL,
+            headers={
+                "User-Agent": "rr-servo-check-tools",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        resp = urlopen(req, timeout=8)
+        raw = resp.read()
+        if hasattr(raw, "decode"):
+            raw = raw.decode("utf-8", "replace")
+        data = json.loads(raw)
+    except Exception:
+        return None
+    tag = data.get("tag_name") or ""
+    if tag.startswith("v") or tag.startswith("V"):
+        tag = tag[1:]
+    if not tag or "-" in tag:
+        return None
+    return tag
 
 
 def _which(name):
@@ -216,7 +310,9 @@ def find_core(vendor, arch, data_dirs):
 
 
 def inspect():
-    cli = find_cli()
+    copies = list_cli_copies()
+    cli = copies[0]["path"] if copies else None
+    latest = fetch_latest_cli()
     cli_data, cli_user = cli_dirs(cli)
     users = user_dir_candidates(cli_user)
     datas = data_dir_candidates(cli_data)
@@ -228,6 +324,9 @@ def inspect():
         cores[fqbn] = find_core(pair[0], pair[1], datas)
     return {
         "cli": cli,
+        "cli_version": copies[0]["version"] if copies else None,
+        "cli_copies": copies,
+        "cli_latest": latest,
         "user_dirs": users,
         "data_dirs": datas,
         "libs": libs,
@@ -235,16 +334,82 @@ def inspect():
     }
 
 
+def cli_status_lines(info):
+    """OK/MISSING/WARN lines for check_tools.ps1 / check_tools.sh."""
+    lines = []
+    copies = info.get("cli_copies") or []
+    latest = info.get("cli_latest")
+    hint = "https://github.com/arduino/arduino-cli/releases/latest"
+    if not copies:
+        msg = "not found. Need Arduino CLI 1.0+ (current major)."
+        if latest:
+            msg += " Latest stable %s. %s" % (latest, hint)
+        else:
+            msg += " %s" % hint
+        lines.append("  MISSING  arduino-cli        %s" % msg)
+        return lines
+
+    best = copies[0]
+    ver = best["version"]
+    path = best["path"]
+    if best["tuple"] < MIN_CLI:
+        lines.append(
+            "  MISSING  arduino-cli        %s (%s); need 1.0+ (latest stable %s). %s"
+            % (ver, path, latest or "unknown", hint)
+        )
+    elif latest and _ver_tuple(ver) == _ver_tuple(latest):
+        lines.append(
+            "  OK       arduino-cli        %s  %s  (matches latest stable)"
+            % (ver, path)
+        )
+    elif latest and _ver_tuple(ver) < _ver_tuple(latest):
+        lines.append("  OK       arduino-cli        %s  %s  (1.0+ required)" % (ver, path))
+        lines.append(
+            "  WARN     arduino-cli-latest installed %s; latest stable is %s. %s"
+            % (ver, latest, hint)
+        )
+    elif latest and _ver_tuple(ver) > _ver_tuple(latest):
+        lines.append(
+            "  OK       arduino-cli        %s  %s  (newer than latest stable %s)"
+            % (ver, path, latest)
+        )
+    else:
+        lines.append(
+            "  OK       arduino-cli        %s  %s  (1.0+ required; latest not queried)"
+            % (ver, path)
+        )
+        lines.append(
+            "  WARN     arduino-cli-latest could not query GitHub for latest stable"
+        )
+
+    for copy in copies[1:]:
+        if copy["tuple"] < best["tuple"]:
+            lines.append(
+                "  WARN     arduino-cli-old    %s  %s  (older copy; using %s)"
+                % (copy["version"], copy["path"], ver)
+            )
+    return lines
+
+
 def main():
     json_mode = "--json" in sys.argv
     info = inspect()
     if json_mode:
-        print(json.dumps(info, indent=2))
+        dump = dict(info)
+        copies = []
+        for item in dump.get("cli_copies") or []:
+            copies.append({"path": item["path"], "version": item["version"]})
+        dump["cli_copies"] = copies
+        print(json.dumps(dump, indent=2))
         missing = any(v is None for v in info["libs"].values()) or any(
             v is None for v in info["cores"].values()
         )
+        copies = info.get("cli_copies") or []
+        if not copies or copies[0]["tuple"] < MIN_CLI:
+            missing = 1
         return 1 if missing else 0
-    print("arduino-cli: %s" % (info["cli"] or "NOT FOUND"))
+    for line in cli_status_lines(info):
+        print(line)
     print("user dirs:")
     if info["user_dirs"]:
         for d in info["user_dirs"]:
@@ -277,6 +442,9 @@ def main():
                 % name
             )
             missing = 1
+    copies = info.get("cli_copies") or []
+    if not copies or copies[0]["tuple"] < MIN_CLI:
+        missing = 1
     return missing
 
 

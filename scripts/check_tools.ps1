@@ -163,32 +163,41 @@ if (-not $cli) {
     elseif (Test-Path -LiteralPath $ArduinoIdeCli) { $cli = $ArduinoIdeCli }
 }
 
-if ($cli) {
-    $cliVer = & $cli version 2>$null | Select-Object -First 1
-    Write-Ok "arduino-cli" "$cliVer"
-} else {
-    Write-Fail "arduino-cli" "PATH, %USERPROFILE%\ex-installer\arduino-cli\, or Arduino IDE"
-}
-
 # Do not use `arduino-cli lib list` alone. Arduino IDE / OneDrive Documents
 # often already has the libraries while CLI's list is empty. Never uninstall.
+# find_arduino.py also picks the newest arduino-cli (1.0+ required; latest stable).
 $finder = Join-Path $PSScriptRoot "find_arduino.py"
 $foundViaPy = $false
+$cliFromPy = $false
 if ($py -and (Test-Path -LiteralPath $finder)) {
     $scan = & $py -u $finder 2>$null
     if ($LASTEXITCODE -eq 0 -or $scan) {
         $foundViaPy = $true
         foreach ($line in @($scan)) {
-            if ($line -match '^\s*OK\s+(\S+)\s+(.*)$') {
-                Write-Ok $Matches[1] $Matches[2].Trim()
-            } elseif ($line -match '^\s*OK\s+lib\s+(\S+)\s+(.*)$') {
+            if ($line -match '^\s*OK\s+lib\s+(\S+)\s+(.*)$') {
                 Write-Ok ("lib " + $Matches[1]) $Matches[2].Trim()
             } elseif ($line -match '^\s*MISSING\s+lib\s+(\S+)\s+(.*)$') {
                 Write-Fail ("lib " + $Matches[1]) $Matches[2].Trim()
+            } elseif ($line -match '^\s*WARN\s+lib\s+(\S+)\s+(.*)$') {
+                Write-Warn ("lib " + $Matches[1]) $Matches[2].Trim()
+            } elseif ($line -match '^\s*OK\s+(\S+)\s+(.*)$') {
+                Write-Ok $Matches[1] $Matches[2].Trim()
+                if ($Matches[1] -eq "arduino-cli") { $cliFromPy = $true }
             } elseif ($line -match '^\s*MISSING\s+(\S+)\s+(.*)$') {
                 Write-Fail $Matches[1] $Matches[2].Trim()
+                if ($Matches[1] -eq "arduino-cli") { $cliFromPy = $true }
+            } elseif ($line -match '^\s*WARN\s+(\S+)\s+(.*)$') {
+                Write-Warn $Matches[1] $Matches[2].Trim()
             }
         }
+    }
+}
+if (-not $cliFromPy) {
+    if ($cli) {
+        $cliVer = & $cli version 2>$null | Select-Object -First 1
+        Write-Ok "arduino-cli" "$cliVer"
+    } else {
+        Write-Fail "arduino-cli" "PATH, %USERPROFILE%\ex-installer\arduino-cli\, or Arduino IDE. Need 1.0+."
     }
 }
 if (-not $foundViaPy) {

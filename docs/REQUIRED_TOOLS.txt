@@ -53,7 +53,12 @@ Host entry: python scripts/build_host.py
 
 Required for firmware (this branch)
 -----------------------------------
-  arduino-cli (PATH, or Win11 %USERPROFILE%\ex-installer\arduino-cli\)
+  Arduino CLI **1.0+** (current major; 0.35.x is the old line and fails the check)
+    Searched: PATH, %USERPROFILE%\ex-installer\arduino-cli\, Arduino IDE
+    bundled CLI, scoop, ~/bin. The newest copy is the one confirmed.
+    If that copy is 1.0+ but older than GitHub latest stable, the check
+    prints WARN arduino-cli-latest (does not fail). Offline: still OK if 1.0+.
+    Latest packages: https://github.com/arduino/arduino-cli/releases/latest
   Arduino AVR core:     arduino:avr          (Mega 2560)
   Arduino-ESP32 core:   esp32:esp32          (D1 R32, FQBN esp32:esp32:d1_uno32)
 
@@ -94,5 +99,6 @@ Typical install (Windows 11)
   LLVM https://github.com/llvm/llvm-project/releases
     (add C:\Program Files\LLVM\bin to PATH)
   Ninja, or Visual Studio Build Tools (nmake). Not MinGW.
-  Arduino CLI or Arduino IDE
+  Arduino CLI 1.0+ (or Arduino IDE, whose bundled CLI is used if newer)
+    https://github.com/arduino/arduino-cli/releases/latest
   pip install lizard cryptography pyserial

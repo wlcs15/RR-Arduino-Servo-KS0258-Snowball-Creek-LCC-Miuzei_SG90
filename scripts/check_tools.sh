@@ -109,41 +109,46 @@ fi
 echo ""
 echo "=== Firmware (required for Mega / ESP32 sketches) ==="
 
-cli=""
-if have_cmd arduino-cli; then
-  cli=arduino-cli
-elif [[ -x "$HOME/ex-installer/arduino-cli/arduino-cli" ]]; then
-  cli="$HOME/ex-installer/arduino-cli/arduino-cli"
-elif [[ -x "$HOME/bin/arduino-cli" ]]; then
-  cli="$HOME/bin/arduino-cli"
-fi
-
-if [[ -n "$cli" ]]; then
-  ok arduino-cli "$("$cli" version 2>/dev/null | head -n1)"
-else
-  fail arduino-cli "https://arduino.github.io/arduino-cli/latest/installation/"
-fi
-
+cli_from_py=0
 # Filesystem first (Arduino IDE / OneDrive / ~/.arduino15). Never uninstall.
+# find_arduino.py also picks the newest arduino-cli (1.0+ required; latest stable).
 if [[ -n "$py" && -f "$root/scripts/find_arduino.py" ]]; then
   while IFS= read -r line; do
     if [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
       ok "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-    elif [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      case "${BASH_REMATCH[1]}" in
-        arduino:avr|esp32:esp32) ok "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" ;;
-      esac
     elif [[ "$line" =~ ^[[:space:]]*MISSING[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
       fail "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    elif [[ "$line" =~ ^[[:space:]]*WARN[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      warn "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    elif [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      ok "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+      if [[ "${BASH_REMATCH[1]}" == "arduino-cli" ]]; then cli_from_py=1; fi
     elif [[ "$line" =~ ^[[:space:]]*MISSING[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      case "${BASH_REMATCH[1]}" in
-        arduino:avr|esp32:esp32) fail "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" ;;
-      esac
+      fail "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+      if [[ "${BASH_REMATCH[1]}" == "arduino-cli" ]]; then cli_from_py=1; fi
+    elif [[ "$line" =~ ^[[:space:]]*WARN[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      warn "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
     fi
   done < <("$py" -u "$root/scripts/find_arduino.py")
 else
   fail "arduino:avr" "python scripts/find_arduino.py (does not uninstall)"
   fail "esp32:esp32" "python scripts/find_arduino.py (does not uninstall)"
+fi
+
+if [[ "$cli_from_py" -eq 0 ]]; then
+  cli=""
+  if have_cmd arduino-cli; then
+    cli=arduino-cli
+  elif [[ -x "$HOME/ex-installer/arduino-cli/arduino-cli" ]]; then
+    cli="$HOME/ex-installer/arduino-cli/arduino-cli"
+  elif [[ -x "$HOME/bin/arduino-cli" ]]; then
+    cli="$HOME/bin/arduino-cli"
+  fi
+  if [[ -n "$cli" ]]; then
+    ok arduino-cli "$("$cli" version 2>/dev/null | head -n1)"
+  else
+    fail arduino-cli "https://arduino.github.io/arduino-cli/latest/installation/ (need 1.0+)"
+  fi
 fi
 
 echo ""

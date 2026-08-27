@@ -42,7 +42,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
-- **This branch (`wemos-d1r32`, tag `v2.06`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.06` clean, `v2.06+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` is **up**; LCC Pro lists this node. Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image. JMRI LCC Buffer must be the RR-CirKits STM32 (`/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00` or `/dev/rrcirkits-lcc`), never the Mega.
+- **This branch (`wemos-d1r32`, tag `v2.07`)**: ESP32 D1 R32 from **v1.02**. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). JMRI Software Version is the git tag (`v2.07` clean, `v2.07+` if the tree is dirty; missing/ill-formed tags bake **`v0.01+`**). STA join copies SSID/PSK after NVS unwrap. Dual-homed hub mDNS IPv4s are collected and tried in order. Hub TCP from STA **192.168.1.233** to this PC’s `:12021` is **up**; LCC Pro lists this node (OwlThree / RR Servo D1 R32 (WiFi) / **v2.07** flashed 26-Aug-2026, NVS kept, MAC `14:33:5c:2e:b4:d8`). Servo PWM after a genuine Adafruit PCA9685 V+. Do not flash Unity over this image. JMRI LCC Buffer must be the RR-CirKits STM32 (`/dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00` or `/dev/rrcirkits-lcc`), never the Mega.
 
 ## Electrical stacks (keep separate)
 
@@ -75,7 +75,7 @@ python scripts/run_coverage.py
 
 Serial 115200: `t` throw, `c` close, `s` status.
 
-OpenLCB / LCC (5 V Mega trunk): Snowball Creek + Library Manager **LibLCC + ACAN2517 + M95_EEPROM** (Rev 4 is MCP2518). Node **05.01.01.01.A5.02**. Next free OwlThree ID is **`.A5.03`**. Do not reuse `.A5.01` (D1 R32 display). Do not use the shield EEPROM ID (`02.02.02.00.01.4C`) or `03.00.AB.01.*`.
+OpenLCB / LCC (5 V Mega trunk): Snowball Creek + Library Manager **LibLCC + ACAN2517 + M95_EEPROM** (Rev 4 is MCP2518). Node **05.01.01.01.A5.02**. Next free OwlThree ID is **`.A5.05`**. Do not reuse `.A5.01` (D1 R32 display), `.A5.03` (D1 R32 servo), or `.A5.04` (S3 panel). Do not use the shield EEPROM ID (`02.02.02.00.01.4C`) or `03.00.AB.01.*`.
 
 ```bash
 # Library Manager (once per PC): LibLCC, ACAN2517, ACAN2515, M95_EEPROM
@@ -99,7 +99,7 @@ The **RR-CirKits LCC Buffer** is STM32 CDC **VID `0483` PID `5740`**. That is th
 | D1 R32 **servo** | `1a86:7523` CH340 | no unique serial — MAC `14:33:5c:2e:b4:d8` | `.A5.03` Wi-Fi hub mDNS |
 | ESP32-S3 panel | `303a:1001` | `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:42:EF:D0-if00` | `.A5.04` (BOOT-hold if USB-JTAG drops) |
 
-Flash Mega with `python -u scripts/build_lcc_mega.py` (does **not** upload). Flash `.A5.03` with `python -u scripts/build_lcc_wifi.py --flash --port /dev/ttyUSB1` after confirming that port’s MAC is `14:33:5c:2e:b4:d8`. SNIP softwareVersion is the git tag (`v2.06` clean, `v2.06+` dirty).
+Flash Mega with `python -u scripts/build_lcc_mega.py` (does **not** upload). Flash `.A5.03` with `python -u scripts/build_lcc_wifi.py --flash --port /dev/ttyUSB1` after confirming that port’s MAC is `14:33:5c:2e:b4:d8`. SNIP softwareVersion is the git tag (`v2.07` clean, `v2.07+` dirty).
 
 CH340 boards have **no unique USB serial**; distinguish them by USB path (`1-1.2` vs `1-1.3`) or by the boot banner (`LccWifiTurnoutNode` vs `d1r32_ili9486_openmrn_wifi`).
 
@@ -159,7 +159,7 @@ python -u scripts/build_lcc_wifi.py --flash --port COM7
 
 SSID **SRIF2333** is public. Do not create `wifi_secrets.env`. Do not pass `--password`.
 
-## Quality baseline (`wemos-d1r32`, **v2.06**, 25-Aug-2026)
+## Quality baseline (`wemos-d1r32`, **v2.07**, 26-Aug-2026)
 
 Host Unity **16/16** (`scripts/run_tests.sh` also runs `git_version.py --selftest`). On-target Unity is the same suite; do **not** flash it over `LccWifiTurnoutNode`.
 
@@ -253,7 +253,7 @@ Ubuntu:
 ./scripts/check_tools.sh
 ```
 
-Host: Git, Python 3, CMake 3.10+, LLVM Clang (not MinGW / not `cl.exe`), and Ninja or `nmake` (Windows) / `make` (Linux). Firmware: `arduino-cli` plus cores `arduino:avr` and `esp32:esp32`, and the Library Manager packages in the `.txt`. Then `git submodule update --init --recursive` (Unity).
+Host: Git, Python 3, CMake 3.10+, LLVM Clang (not MinGW / not `cl.exe`), and Ninja or `nmake` (Windows) / `make` (Linux). Firmware: **Arduino CLI 1.0+** (searches PATH, `ex-installer`, and the Arduino IDE copy; uses the newest; **WARN** if behind GitHub latest stable), plus cores `arduino:avr` and `esp32:esp32`, and the Library Manager packages in the `.txt`. Then `git submodule update --init --recursive` (Unity).
 
 ## Reserved pins (all Arduino-footprint boards)
 
