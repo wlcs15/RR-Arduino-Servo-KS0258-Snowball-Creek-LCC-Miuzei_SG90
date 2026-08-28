@@ -99,3 +99,4 @@ RESUME.txt
 # Local UFW/tcpdump snapshots (may contain host firewall details)
 esp32-lcc-*.pcap
 esp32-lcc-*.txt
+.aider*
