@@ -37,6 +37,12 @@
 #include "RamOpenlcbCfg.h"
 #include "config.h"
 #include "wifi_cred.h"
+
+namespace openlcb {
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4, "OwlThree", "RR Servo D1 R32 (WiFi)", "D1R32",
+    RR_GIT_VERSION_LITERAL};
+}  // namespace openlcb
 #include <esp_vfs.h>
 #include <sys/stat.h>
 
@@ -108,6 +114,7 @@ const char CDI_DATA[] = "";
  * RAM VFS (same as the D1 R32 display node) is the config file. */
 const char *const CONFIG_FILENAME = RR_RAMCFG_PATH;
 const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
+/* OpenMRN create_config HASSERTs this equals CONFIG_FILENAME. */
 const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }  // namespace openlcb
 
@@ -115,33 +122,76 @@ static_assert(openlcb::CONFIG_FILE_SIZE <= RR_RAMCFG_BYTES,
               "OpenLCB config larger than RAM VFS");
 
 static RrRamCfg s_ramcfg;
+static long s_ram_off[4];
+static uint8_t s_ram_used[4];
+
+static int ram_slot(int fd) {
+  int i = fd - 3;
+  if (i < 0 || i > 3) {
+    return -1;
+  }
+  return i;
+}
 
 static int ram_open(const char *path, int flags, int mode) {
+  int i;
   (void)path;
   (void)flags;
   (void)mode;
-  s_ramcfg.off = 0;
-  return 1;
+  for (i = 0; i < 4; i++) {
+    if (!s_ram_used[i]) {
+      s_ram_used[i] = 1;
+      s_ram_off[i] = 0;
+      return i + 3;
+    }
+  }
+  s_ram_off[0] = 0;
+  return 3;
 }
 
 static int ram_close(int fd) {
-  (void)fd;
+  int i = ram_slot(fd);
+  if (i >= 0) {
+    s_ram_used[i] = 0;
+  }
   return 0;
 }
 
 static ssize_t ram_write(int fd, const void *data, size_t size) {
-  (void)fd;
-  return (ssize_t)rr_ramcfg_write(&s_ramcfg, data, (unsigned)size);
+  int i = ram_slot(fd);
+  if (i < 0) {
+    return -1;
+  }
+  s_ramcfg.off = s_ram_off[i];
+  const int n = rr_ramcfg_write(&s_ramcfg, data, (unsigned)size);
+  s_ram_off[i] = s_ramcfg.off;
+  return (ssize_t)n;
 }
 
 static ssize_t ram_read(int fd, void *dst, size_t size) {
-  (void)fd;
-  return (ssize_t)rr_ramcfg_read(&s_ramcfg, dst, (unsigned)size);
+  int i = ram_slot(fd);
+  if (i < 0) {
+    return -1;
+  }
+  s_ramcfg.off = s_ram_off[i];
+  const int n = rr_ramcfg_read(&s_ramcfg, dst, (unsigned)size);
+  s_ram_off[i] = s_ramcfg.off;
+  return (ssize_t)n;
 }
 
 static off_t ram_lseek(int fd, off_t offset, int whence) {
-  (void)fd;
-  return (off_t)rr_ramcfg_lseek(&s_ramcfg, (long)offset, whence);
+  int i = ram_slot(fd);
+  int n;
+  if (i < 0) {
+    return -1;
+  }
+  s_ramcfg.off = s_ram_off[i];
+  n = rr_ramcfg_lseek(&s_ramcfg, (long)offset, whence);
+  if (n < 0) {
+    return -1;
+  }
+  s_ram_off[i] = s_ramcfg.off;
+  return (off_t)n;
 }
 
 static int ram_fstat(int fd, struct stat *st) {

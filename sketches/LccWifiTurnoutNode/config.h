@@ -14,9 +14,9 @@
 namespace openlcb
 {
 
-extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4, "OwlThree", "RR Servo D1 R32 (WiFi)", "D1R32",
-    RR_GIT_VERSION_LITERAL};
+/* Defined in LccWifiTurnoutNode.ino so it overrides OpenMRNLite's weak
+ * "Undefined model" SNIP_STATIC_DATA. */
+extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
 
 static constexpr uint16_t CANONICAL_VERSION = 0x2001;
 
