@@ -4,6 +4,7 @@
 #include "WifiHubPick.h"
 #include "OpenmrnWifiBoot.h"
 #include "RamOpenlcbCfg.h"
+#include "CdiWellFormed.h"
 #include "GitVersion.h"
 #include "unity.h"
 
@@ -308,6 +309,33 @@ static void test_ramcfg_posix_read_after_write(void) {
   TEST_ASSERT_EQUAL(-1, rr_ramcfg_lseek(&ram, 0, 99));
 }
 
+static const char k_cdi_ok[] =
+    "<?xml version=\"1.0\"?>\n"
+    "<cdi>\n"
+    "<identification><manufacturer>OwlThree</manufacturer>"
+    "<model>RR Servo D1 R32 (WiFi)</model></identification>\n"
+    "<acdi/>\n"
+    "</cdi>\n";
+
+static void test_cdi_configure_ready_like_lcc_pro(void) {
+  char assembled[512];
+  unsigned off = 0;
+  unsigned n;
+  unsigned got = 0;
+  TEST_ASSERT_EQUAL(1, rr_cdi_configure_ready(k_cdi_ok, (unsigned)strlen(k_cdi_ok)));
+  TEST_ASSERT_EQUAL(0, rr_cdi_configure_ready(0, 10));
+  TEST_ASSERT_EQUAL(0, rr_cdi_configure_ready("<cdi>", 5));
+  TEST_ASSERT_EQUAL(0, rr_cdi_configure_ready(
+      "<?xml version=\"1.0\"?><cdi><identification>", 42));
+  while ((n = rr_cdi_jmri_read(k_cdi_ok, (unsigned)strlen(k_cdi_ok), off,
+                               assembled + got, 64)) > 0) {
+    off += n;
+    got += n;
+  }
+  assembled[got] = 0;
+  TEST_ASSERT_EQUAL(1, rr_cdi_configure_ready(assembled, got));
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -333,6 +361,7 @@ int rr_servo_run_unity_tests(void) {
   RUN_TEST(test_wifi_boot_rejects_wifi_before_config);
   RUN_TEST(test_wifi_config_fd_and_acdi_byte);
   RUN_TEST(test_ramcfg_posix_read_after_write);
+  RUN_TEST(test_cdi_configure_ready_like_lcc_pro);
   return UNITY_END();
 }
 
