@@ -28,7 +28,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
 
 ## Status
 
-- Portable ladder + motion: `lib/rr_servo` (host Unity **16/16**, llvm-cov **97.88%** lines)
+- Portable ladder + motion: `lib/rr_servo` (host Unity **20/20**, llvm-cov **98.37%** lines)
 - Mega serial bring-up: `sketches/TurnoutBringup` (DEBUG-off 45–135–90 cycle)
 - Mega **KS0258 ch0 + ch1** proven with JMRI (**v1.02**): `sketches/LccTurnoutNode`
   - Snowball Creek **Rev 4 MCP2518** (ACAN2517), not MCP2515
@@ -161,7 +161,7 @@ SSID **SRIF2333** is public. Do not create `wifi_secrets.env`. Do not pass `--pa
 
 ## Quality baseline (`wemos-d1r32`, **v2.07**, 26-Aug-2026)
 
-Host Unity **16/16** (`scripts/run_tests.sh` also runs `git_version.py --selftest`). On-target Unity is the same suite; do **not** flash it over `LccWifiTurnoutNode`.
+Host Unity **20/20** (`scripts/run_tests.sh` / `scripts/run_tests.ps1` also runs `git_version.py --selftest`). On-target Unity is the same suite; do **not** flash it over `LccWifiTurnoutNode`.
 
 lizard (CCN fail at 10; `third_party/` not scanned):
 

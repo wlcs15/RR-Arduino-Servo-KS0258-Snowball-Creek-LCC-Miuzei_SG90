@@ -2,6 +2,8 @@
 #include "TurnoutChannel.h"
 #include "WifiStaBind.h"
 #include "WifiHubPick.h"
+#include "OpenmrnWifiBoot.h"
+#include "RamOpenlcbCfg.h"
 #include "GitVersion.h"
 #include "unity.h"
 
@@ -238,6 +240,74 @@ static void test_wifi_sta_bind_null_and_empty_ssid(void) {
   TEST_ASSERT_EQUAL(WIFI_STA_BIND_NO_PSK, wifi_sta_bind_status(&bind));
 }
 
+static void test_wifi_boot_legal_full_order(void) {
+  const unsigned char seq[] = {
+      RR_WIFI_BOOT_SPIFFS, RR_WIFI_BOOT_CDI_XML, RR_WIFI_BOOT_CONFIG_FILE,
+      RR_WIFI_BOOT_WIFI_MGR, RR_WIFI_BOOT_STACK_BEGIN};
+  TEST_ASSERT_EQUAL(1, rr_wifi_boot_order_ok(seq, 5));
+  TEST_ASSERT_EQUAL(1, rr_wifi_boot_order_ok(seq, 3));
+  TEST_ASSERT_EQUAL(1, rr_wifi_boot_order_ok(seq, 0));
+}
+
+static void test_wifi_boot_rejects_wifi_before_config(void) {
+  const unsigned char bad[] = {RR_WIFI_BOOT_SPIFFS, RR_WIFI_BOOT_WIFI_MGR,
+                               RR_WIFI_BOOT_CONFIG_FILE};
+  TEST_ASSERT_EQUAL(0, rr_wifi_boot_order_ok(bad, 3));
+  TEST_ASSERT_EQUAL(0, rr_wifi_boot_order_ok(NULL, 1));
+  TEST_ASSERT_EQUAL(0, rr_wifi_boot_order_ok(bad, -1));
+  TEST_ASSERT_EQUAL(0, rr_wifi_boot_order_ok(bad, 9));
+}
+
+static void test_wifi_config_fd_and_acdi_byte(void) {
+  TEST_ASSERT_EQUAL(0, rr_wifi_config_fd_ready(-1));
+  TEST_ASSERT_EQUAL(1, rr_wifi_config_fd_ready(0));
+  TEST_ASSERT_EQUAL(1, rr_wifi_config_fd_ready(3));
+  TEST_ASSERT_EQUAL(0, rr_snip_acdi_version_ok(0));
+  TEST_ASSERT_EQUAL(0, rr_snip_acdi_version_ok(1));
+  TEST_ASSERT_EQUAL(1, rr_snip_acdi_version_ok(2));
+  TEST_ASSERT_EQUAL(0, rr_snip_acdi_version_ok(4));
+}
+
+static void test_ramcfg_posix_read_after_write(void) {
+  RrRamCfg ram;
+  unsigned char b;
+  char wr[] = "ok";
+  char rd[8];
+  rr_ramcfg_init(NULL);
+  rr_ramcfg_init(&ram);
+  TEST_ASSERT_EQUAL(2, ram.buf[0]);
+  TEST_ASSERT_EQUAL(1, rr_snip_acdi_version_ok(ram.buf[0]));
+  TEST_ASSERT_EQUAL(RR_RAMCFG_BYTES, rr_ramcfg_fstat_size(&ram));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_fstat_size(NULL));
+  TEST_ASSERT_EQUAL(0, rr_ramcfg_lseek(&ram, 0, 0));
+  TEST_ASSERT_EQUAL(1, rr_ramcfg_read(&ram, &b, 1));
+  TEST_ASSERT_EQUAL(2, b);
+  TEST_ASSERT_EQUAL(1, rr_ramcfg_lseek(&ram, 0, 1));
+  TEST_ASSERT_EQUAL(RR_RAMCFG_BYTES, rr_ramcfg_lseek(&ram, 0, 2));
+  TEST_ASSERT_EQUAL(0, rr_ramcfg_read(&ram, rd, 1));
+  TEST_ASSERT_EQUAL(0, rr_ramcfg_write(&ram, wr, 2));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_lseek(&ram, -1, 0));
+  TEST_ASSERT_EQUAL(10, rr_ramcfg_lseek(&ram, 10, 0));
+  TEST_ASSERT_EQUAL(2, rr_ramcfg_write(&ram, wr, 2));
+  TEST_ASSERT_EQUAL(10, rr_ramcfg_lseek(&ram, 10, 0));
+  TEST_ASSERT_EQUAL(2, rr_ramcfg_read(&ram, rd, 2));
+  TEST_ASSERT_EQUAL('o', rd[0]);
+  TEST_ASSERT_EQUAL(RR_RAMCFG_BYTES - 4, rr_ramcfg_lseek(&ram, -4, 2));
+  TEST_ASSERT_EQUAL(4, rr_ramcfg_read(&ram, rd, 8));
+  TEST_ASSERT_EQUAL(RR_RAMCFG_BYTES - 2, rr_ramcfg_lseek(&ram, -2, 2));
+  TEST_ASSERT_EQUAL(2, rr_ramcfg_write(&ram, wr, 8));
+  ram.off = -1;
+  TEST_ASSERT_EQUAL(0, rr_ramcfg_read(&ram, rd, 1));
+  ram.off = -1;
+  TEST_ASSERT_EQUAL(0, rr_ramcfg_write(&ram, wr, 1));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_read(NULL, rd, 1));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_read(&ram, NULL, 1));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_write(NULL, wr, 1));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_write(&ram, NULL, 1));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_lseek(NULL, 0, 0));
+  TEST_ASSERT_EQUAL(-1, rr_ramcfg_lseek(&ram, 0, 99));
+}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -259,6 +329,10 @@ int rr_servo_run_unity_tests(void) {
   RUN_TEST(test_wifi_hub_prefers_same_subnet_keeps_mdns_order);
   RUN_TEST(test_wifi_hub_keeps_both_dual_home_ipv4s);
   RUN_TEST(test_wifi_hub_parse_rejects_garbage);
+  RUN_TEST(test_wifi_boot_legal_full_order);
+  RUN_TEST(test_wifi_boot_rejects_wifi_before_config);
+  RUN_TEST(test_wifi_config_fd_and_acdi_byte);
+  RUN_TEST(test_ramcfg_posix_read_after_write);
   return UNITY_END();
 }
 

@@ -24,6 +24,9 @@
 #include <nvs_flash.h>
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
 
 #include <OpenMRNLite.h>
 #include "openlcb/CallbackEventHandler.hxx"
@@ -31,8 +34,11 @@
 #include <BoardPins.h>
 #include "WifiHubPick.h"
 #include "WifiStaBind.h"
+#include "RamOpenlcbCfg.h"
 #include "config.h"
 #include "wifi_cred.h"
+#include <esp_vfs.h>
+#include <sys/stat.h>
 
 static constexpr uint64_t NODE_ID = (uint64_t)RR_OWLTHREE_NODE_ID;
 static const uint64_t kEventBase = 0x05010101A5030000ULL;
@@ -91,15 +97,85 @@ class FactoryResetHelper : public DefaultConfigUpdateListener {
     cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
     cfg.userinfo().description().write(fd, "OwlThree turnout node Wi-Fi");
   }
-} factory_reset_helper;
+};
+
+static FactoryResetHelper *s_reset_helper;
 
 namespace openlcb {
 const char CDI_FILENAME[] = "/spiffs/cdi.xml";
 const char CDI_DATA[] = "";
-const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+/* Arduino-ESP32 3.x SPIFFS POSIX read() returns EIO; OpenMRN HASSERTs.
+ * RAM VFS (same as the D1 R32 display node) is the config file. */
+const char *const CONFIG_FILENAME = RR_RAMCFG_PATH;
 const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
 const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }  // namespace openlcb
+
+static_assert(openlcb::CONFIG_FILE_SIZE <= RR_RAMCFG_BYTES,
+              "OpenLCB config larger than RAM VFS");
+
+static RrRamCfg s_ramcfg;
+
+static int ram_open(const char *path, int flags, int mode) {
+  (void)path;
+  (void)flags;
+  (void)mode;
+  s_ramcfg.off = 0;
+  return 1;
+}
+
+static int ram_close(int fd) {
+  (void)fd;
+  return 0;
+}
+
+static ssize_t ram_write(int fd, const void *data, size_t size) {
+  (void)fd;
+  return (ssize_t)rr_ramcfg_write(&s_ramcfg, data, (unsigned)size);
+}
+
+static ssize_t ram_read(int fd, void *dst, size_t size) {
+  (void)fd;
+  return (ssize_t)rr_ramcfg_read(&s_ramcfg, dst, (unsigned)size);
+}
+
+static off_t ram_lseek(int fd, off_t offset, int whence) {
+  (void)fd;
+  return (off_t)rr_ramcfg_lseek(&s_ramcfg, (long)offset, whence);
+}
+
+static int ram_fstat(int fd, struct stat *st) {
+  (void)fd;
+  if (!st) {
+    return -1;
+  }
+  memset(st, 0, sizeof(*st));
+  st->st_mode = S_IFREG | 0666;
+  st->st_size = (off_t)rr_ramcfg_fstat_size(&s_ramcfg);
+  return 0;
+}
+
+static void mount_ramcfg(void) {
+  static int mounted;
+  esp_vfs_t vfs;
+  if (mounted) {
+    return;
+  }
+  rr_ramcfg_init(&s_ramcfg);
+  memset(&vfs, 0, sizeof(vfs));
+  vfs.flags = ESP_VFS_FLAG_DEFAULT;
+  vfs.open = ram_open;
+  vfs.close = ram_close;
+  vfs.write = ram_write;
+  vfs.read = ram_read;
+  vfs.lseek = ram_lseek;
+  vfs.fstat = ram_fstat;
+  if (esp_vfs_register("/ramcfg", &vfs, NULL) == ESP_OK) {
+    mounted = 1;
+  } else {
+    Serial.println(F("[boot] ramcfg VFS failed"));
+  }
+}
 
 static void print_debug_ids(void) {
   uint8_t mac[6];
@@ -168,25 +244,25 @@ static bool mount_spiffs(void) {
   return SPIFFS.begin(true);
 }
 
-static void force_acdi_user_version(void) {
-  // SNIP FILE_LITERAL_BYTE HASSERTs unless byte 0 of the config file is 2.
-  FILE *f = fopen("/spiffs/openlcb_config", "r+");
-  if (!f) {
-    return;
-  }
-  const uint8_t ver = 2;
-  if (fseek(f, 0, SEEK_SET) == 0) {
-    (void)fwrite(&ver, 1, 1, f);
-  }
-  fclose(f);
+static void start_openmrn(void) {
+  mount_ramcfg();
+  Serial.println(F("[boot] CDI xml"));
+  openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
+  Serial.print(F("[boot] CONFIG_FILENAME="));
+  Serial.println(openlcb::CONFIG_FILENAME ? openlcb::CONFIG_FILENAME : "(null)");
+  s_reset_helper = new FactoryResetHelper();
+  /* Esp32WiFiManager::factory_reset must run during create_config or hub
+   * port/host stay 0xFF (65535 / garbage hostname) and the uplink panics. */
+  start_wifi_manager();
+  Serial.println(F("[boot] create_config_file"));
+  openmrn.stack()->create_config_file_if_needed(
+      cfg.seg().internal_config(), openlcb::CANONICAL_VERSION,
+      openlcb::CONFIG_FILE_SIZE);
+  s_ramcfg.buf[0] = 2;
 }
 
-static void start_openmrn(void) {
-  openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
-  openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
-                                                openlcb::CANONICAL_VERSION,
-                                                openlcb::CONFIG_FILE_SIZE);
-  force_acdi_user_version();
+static void finish_openmrn(void) {
+  Serial.println(F("[boot] openmrn.begin"));
   openmrn.begin();
   lcc_events.add_entry(evt_throw(0), openlcb::CallbackEventHandler::IS_CONSUMER);
   lcc_events.add_entry(evt_close(0), openlcb::CallbackEventHandler::IS_CONSUMER);
@@ -215,8 +291,8 @@ void setup() {
     Serial.println(F("SPIFFS failed"));
     return;
   }
-  start_wifi_manager();
   start_openmrn();
+  finish_openmrn();
 }
 
 void loop() {
