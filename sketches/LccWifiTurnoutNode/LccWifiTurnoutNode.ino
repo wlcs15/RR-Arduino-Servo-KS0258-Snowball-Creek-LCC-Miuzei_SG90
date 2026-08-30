@@ -108,7 +108,7 @@ class FactoryResetHelper : public DefaultConfigUpdateListener {
 static FactoryResetHelper *s_reset_helper;
 
 namespace openlcb {
-const char CDI_FILENAME[] = "/spiffs/cdi.xml";
+const char CDI_FILENAME[] = "/ramcfg/cdi.xml";
 const char CDI_DATA[] = "";
 /* Arduino-ESP32 3.x SPIFFS POSIX read() returns EIO; OpenMRN HASSERTs.
  * RAM VFS (same as the D1 R32 display node) is the config file. */
@@ -122,8 +122,11 @@ static_assert(openlcb::CONFIG_FILE_SIZE <= RR_RAMCFG_BYTES,
               "OpenLCB config larger than RAM VFS");
 
 static RrRamCfg s_ramcfg;
+static unsigned char s_cdi[8192];
+static unsigned s_cdi_len;
 static long s_ram_off[4];
 static uint8_t s_ram_used[4];
+static uint8_t s_ram_kind[4];
 
 static int ram_slot(int fd) {
   int i = fd - 3;
@@ -135,17 +138,19 @@ static int ram_slot(int fd) {
 
 static int ram_open(const char *path, int flags, int mode) {
   int i;
-  (void)path;
+  const uint8_t kind = (path && strstr(path, "cdi")) ? 1 : 0;
   (void)flags;
   (void)mode;
   for (i = 0; i < 4; i++) {
     if (!s_ram_used[i]) {
       s_ram_used[i] = 1;
+      s_ram_kind[i] = kind;
       s_ram_off[i] = 0;
       return i + 3;
     }
   }
   s_ram_off[0] = 0;
+  s_ram_kind[0] = kind;
   return 3;
 }
 
@@ -157,51 +162,92 @@ static int ram_close(int fd) {
   return 0;
 }
 
+static unsigned ram_cap(int i) {
+  return s_ram_kind[i] ? (unsigned)sizeof(s_cdi) : (unsigned)RR_RAMCFG_BYTES;
+}
+
+static unsigned char *ram_base(int i) {
+  return s_ram_kind[i] ? s_cdi : s_ramcfg.buf;
+}
+
 static ssize_t ram_write(int fd, const void *data, size_t size) {
   int i = ram_slot(fd);
-  if (i < 0) {
+  unsigned cap;
+  unsigned room;
+  if (i < 0 || data == 0) {
     return -1;
   }
-  s_ramcfg.off = s_ram_off[i];
-  const int n = rr_ramcfg_write(&s_ramcfg, data, (unsigned)size);
-  s_ram_off[i] = s_ramcfg.off;
-  return (ssize_t)n;
+  cap = ram_cap(i);
+  if (s_ram_off[i] < 0 || (unsigned)s_ram_off[i] >= cap) {
+    return 0;
+  }
+  room = cap - (unsigned)s_ram_off[i];
+  if (size > room) {
+    size = room;
+  }
+  memcpy(ram_base(i) + (unsigned)s_ram_off[i], data, size);
+  s_ram_off[i] += (long)size;
+  if (s_ram_kind[i] && (unsigned)s_ram_off[i] > s_cdi_len) {
+    s_cdi_len = (unsigned)s_ram_off[i];
+  }
+  return (ssize_t)size;
 }
 
 static ssize_t ram_read(int fd, void *dst, size_t size) {
   int i = ram_slot(fd);
-  if (i < 0) {
+  unsigned cap;
+  unsigned room;
+  if (i < 0 || dst == 0) {
     return -1;
   }
-  s_ramcfg.off = s_ram_off[i];
-  const int n = rr_ramcfg_read(&s_ramcfg, dst, (unsigned)size);
-  s_ram_off[i] = s_ramcfg.off;
-  return (ssize_t)n;
+  cap = ram_cap(i);
+  if (s_ram_kind[i] && s_cdi_len < cap) {
+    cap = s_cdi_len;
+  }
+  if (s_ram_off[i] < 0 || (unsigned)s_ram_off[i] >= cap) {
+    return 0;
+  }
+  room = cap - (unsigned)s_ram_off[i];
+  if (size > room) {
+    size = room;
+  }
+  memcpy(dst, ram_base(i) + (unsigned)s_ram_off[i], size);
+  s_ram_off[i] += (long)size;
+  return (ssize_t)size;
 }
 
 static off_t ram_lseek(int fd, off_t offset, int whence) {
   int i = ram_slot(fd);
-  int n;
+  unsigned cap;
+  long next;
   if (i < 0) {
     return -1;
   }
-  s_ramcfg.off = s_ram_off[i];
-  n = rr_ramcfg_lseek(&s_ramcfg, (long)offset, whence);
-  if (n < 0) {
+  cap = ram_cap(i);
+  if (whence == SEEK_SET) {
+    next = (long)offset;
+  } else if (whence == SEEK_CUR) {
+    next = s_ram_off[i] + (long)offset;
+  } else if (whence == SEEK_END) {
+    next = (long)cap + (long)offset;
+  } else {
     return -1;
   }
-  s_ram_off[i] = s_ramcfg.off;
-  return (off_t)n;
+  if (next < 0 || next > (long)cap) {
+    return -1;
+  }
+  s_ram_off[i] = next;
+  return (off_t)next;
 }
 
 static int ram_fstat(int fd, struct stat *st) {
-  (void)fd;
-  if (!st) {
+  int i = ram_slot(fd);
+  if (!st || i < 0) {
     return -1;
   }
   memset(st, 0, sizeof(*st));
   st->st_mode = S_IFREG | 0666;
-  st->st_size = (off_t)rr_ramcfg_fstat_size(&s_ramcfg);
+  st->st_size = s_ram_kind[i] ? (off_t)s_cdi_len : (off_t)RR_RAMCFG_BYTES;
   return 0;
 }
 
