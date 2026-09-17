@@ -107,6 +107,33 @@ def find_rc():
     return None
 
 
+def _nmake_from_vswhere(vswhere, extra_args):
+    cmd = [vswhere] + extra_args + ["-find", r"**\nmake.exe"]
+    try:
+        out = subprocess.check_output(cmd, universal_newlines=True)
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return [ln.strip() for ln in out.splitlines() if ln.strip()]
+
+
+def _nmake_from_glob():
+    """VS 2022/18: vswhere -latest can pick an install that has no C++ tools."""
+    import glob
+
+    roots = []
+    for key, default in (
+        ("ProgramFiles", r"C:\Program Files"),
+        ("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+    ):
+        roots.append(os.path.join(os.environ.get(key, default), "Microsoft Visual Studio"))
+    found = []
+    for root in roots:
+        pattern = os.path.join(root, "*", "*", "VC", "Tools", "MSVC", "*", "bin", "Hostx64", "x64", "nmake.exe")
+        found.extend(glob.glob(pattern))
+    found.sort(reverse=True)
+    return found
+
+
 def find_nmake():
     found = _which("nmake")
     if found:
@@ -118,16 +145,21 @@ def find_nmake():
             pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe"
         )
         if not os.path.isfile(vswhere):
-            return None
-    try:
-        out = subprocess.check_output(
-            [vswhere, "-latest", "-products", "*", "-find", r"**\nmake.exe"],
-            universal_newlines=True,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    lines = [ln.strip() for ln in out.splitlines() if ln.strip()]
-    preferred = [ln for ln in lines if "Hostx64" in ln and "x64" in ln]
+            vswhere = None
+    lines = []
+    if vswhere:
+        requires = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64"]
+        for extra in (
+            ["-latest", "-products", "*", "-requires"] + requires,
+            ["-all", "-products", "*", "-requires"] + requires,
+            ["-latest", "-products", "*"],
+        ):
+            lines = _nmake_from_vswhere(vswhere, extra)
+            if lines:
+                break
+    if not lines:
+        lines = _nmake_from_glob()
+    preferred = [ln for ln in lines if "Hostx64" in ln.replace("/", "\\") and "x64" in ln]
     if preferred:
         return preferred[0]
     return lines[0] if lines else None

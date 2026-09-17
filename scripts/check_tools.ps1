@@ -23,7 +23,7 @@ if (-not $env:CHECK_TOOLS_INNER) {
         "file: $log"
         "time: $(Get-Date -Format o)"
         "host: $env:COMPUTERNAME"
-        "os: $($PSVersionTable.OS)"
+        "os: $([Environment]::OSVersion.VersionString)"
         "ps: $($PSVersionTable.PSVersion)"
         "user: $env:USERNAME"
         "repo: $Root"
@@ -90,12 +90,31 @@ function Find-Nmake {
     $vswhere = Find-Cmd @("vswhere") @(
         (Join-Path $Pf86 "Microsoft Visual Studio\Installer")
     )
-    if (-not $vswhere) { return $null }
-    $out = & $vswhere -latest -products * -find "**\nmake.exe" 2>$null
-    if (-not $out) { return $null }
-    $lines = @($out | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $lines = @()
+    if ($vswhere) {
+        # VS 18 Community can be -latest while nmake lives in Build Tools / VS 2022.
+        foreach ($args in @(
+            @("-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-find", "**\nmake.exe"),
+            @("-all", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-find", "**\nmake.exe"),
+            @("-latest", "-products", "*", "-find", "**\nmake.exe")
+        )) {
+            $out = & $vswhere @args 2>$null
+            $lines = @($out | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            if ($lines.Count -gt 0) { break }
+        }
+    }
+    if ($lines.Count -eq 0) {
+        foreach ($root in @(
+            (Join-Path $Pf "Microsoft Visual Studio"),
+            (Join-Path $Pf86 "Microsoft Visual Studio")
+        )) {
+            $pattern = Join-Path $root "*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\nmake.exe"
+            $hits = @(Get-Item -Path $pattern -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)
+            $lines += $hits
+        }
+    }
     $pref = $lines | Where-Object { $_ -match "Hostx64" -and $_ -match "x64" }
-    if ($pref) { return $pref[0] }
+    if ($pref) { return @($pref)[0] }
     if ($lines.Count -gt 0) { return $lines[0] }
     return $null
 }

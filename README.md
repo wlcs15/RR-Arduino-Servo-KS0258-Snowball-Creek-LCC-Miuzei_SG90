@@ -42,7 +42,7 @@ Full map: [docs/HARDWARE.md](docs/HARDWARE.md).
   - Flash/SRAM vs one-servo JMRI build: **+840 B flash, +31 B SRAM** (35906 / 2103)
   - Firmware that links **LibLCC** is GPL-2.0; application sources stay BSD-2-Clause
 - Limit ladder still unwired. Do not mount the SG90 until pulses match the 3D stops.
-- **This branch (`wemos-d1r32`, tag `v3.02` on GitHub)**: ESP32 D1 R32. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). Hub is mDNS `_openlcb-can._tcp` (TCP **12021**); no hardcoded hub IPv4. CDI XML is served from RAM VFS (`/ramcfg/cdi.xml`) because Arduino-ESP32 3.x SPIFFS POSIX `read()` EIO truncated JMRI CDI (JDOM line 51). SNIP is static OwlThree strings. Host Unity **21/21** including a simulated LCC Pro Configure (64-byte CDI assemble). **29-Aug-2026:** LCC Pro lists all four OwlThree nodes with **Configure**. Local commit `38415e6` (CDI host test) is **not pushed, not tagged**. Do not flash Unity over this image. JMRI LCC Buffer must be the RR-CirKits STM32 (`usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00`), never the Mega. Flash `.A5.03` only after MAC `14:33:5c:2e:b4:d8` (often `/dev/ttyUSB1`).
+- **This branch (`wemos-d1r32`, tag `v3.03` on GitHub)**: ESP32 D1 R32. Node **05.01.01.01.A5.03**. Sketch **`LccWifiTurnoutNode`**: OpenMRNLite GridConnect over Wi-Fi (SSID **SRIF2333**, wrap PSK, no PSK in git). Hub is mDNS `_openlcb-can._tcp` (TCP **12021**); no hardcoded hub IPv4. CDI XML is served from RAM VFS (`/ramcfg/cdi.xml`) because Arduino-ESP32 3.x SPIFFS POSIX `read()` EIO truncated JMRI CDI (JDOM line 51). SNIP is static OwlThree strings. Host Unity **21/21** including a simulated LCC Pro Configure (64-byte CDI assemble). **29-Aug-2026:** LCC Pro lists all four OwlThree nodes with **Configure**. Local commit `38415e6` (CDI host test) is **not pushed, not tagged**. Do not flash Unity over this image. JMRI LCC Buffer must be the RR-CirKits STM32 (`usb-STMicroelectronics_STM32_Virtual_ComPort_209737A73931-if00`), never the Mega. Flash `.A5.03` only after MAC `14:33:5c:2e:b4:d8` (often `/dev/ttyUSB1`).
 
 ## Electrical stacks (keep separate)
 
@@ -99,7 +99,7 @@ The **RR-CirKits LCC Buffer** is STM32 CDC **VID `0483` PID `5740`**. That is th
 | D1 R32 **servo** | `1a86:7523` CH340 | no unique serial — MAC `14:33:5c:2e:b4:d8` | `.A5.03` Wi-Fi hub mDNS |
 | ESP32-S3 panel | `303a:1001` | `usb-Espressif_USB_JTAG_serial_debug_unit_1C:DB:D4:42:EF:D0-if00` | `.A5.04` (BOOT-hold if USB-JTAG drops) |
 
-Flash Mega with `python -u scripts/build_lcc_mega.py` (does **not** upload). Flash `.A5.03` with `python -u scripts/build_lcc_wifi.py --flash --port /dev/ttyUSB1` after confirming that port’s MAC is `14:33:5c:2e:b4:d8`. SNIP softwareVersion is the git tag (`v3.02` clean, `v3.02+` dirty). **Do not tag or push** until asked.
+Flash Mega with `python -u scripts/build_lcc_mega.py` (does **not** upload). Flash `.A5.03` with `python -u scripts/build_lcc_wifi.py --flash --port /dev/ttyUSB1` after confirming that port’s MAC is `14:33:5c:2e:b4:d8`. SNIP softwareVersion is the git tag (`v3.03` clean, `v3.03+` dirty). **Do not tag or push** until asked.
 
 CH340 boards have **no unique USB serial**; distinguish them by USB path (`1-1.2` vs `1-1.3`) or by the boot banner (`LccWifiTurnoutNode` vs `d1r32_ili9486_openmrn_wifi`).
 
