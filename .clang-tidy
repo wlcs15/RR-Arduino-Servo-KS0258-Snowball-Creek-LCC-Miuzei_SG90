@@ -1,5 +1,8 @@
+# Host-only. Mega sketches/*.ino are not in HeaderFilterRegex
+# (POSIX VFS off_t/long; google-runtime-int must stay off those TUs).
+# third_party/ is not listed and is treated as non-user code.
 Checks: 'clang-diagnostic-*,clang-analyzer-*,google-*,cert-*'
-WarningsAsErrors: 'clang-diagnostic-error,clang-analyzer-*'
+WarningsAsErrors: 'clang-diagnostic-error,clang-analyzer-*,google-*,cert-*'
 HeaderFilterRegex: 'lib/rr_servo|tests/|host/'
 FormatStyle: none
 CheckOptions:

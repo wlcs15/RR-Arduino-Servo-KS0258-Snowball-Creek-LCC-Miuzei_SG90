@@ -67,7 +67,10 @@ ln -s "$(pwd)/lib/rr_servo" "$HOME/Arduino/libraries/rr_servo"
 # FQBN arduino:avr:mega:cpu=atmega2560
 ./scripts/run_tests.sh
 ./scripts/run_cppcheck.sh
-# optional: ./scripts/run_lizard.sh  ./scripts/run_clang_tidy.sh
+./scripts/run_lizard.sh
+./scripts/run_clang_tidy.sh
+# Win11: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_clang_tidy.ps1
+# core: python -u scripts/run_clang_tidy.py
 # coverage (Clang llvm-cov, not gcovr/Ceedling/MinGW):
 python scripts/run_coverage.py
 # Mega Unity (+ optional gcov link): python scripts/compile_mega_unity.py --coverage
@@ -316,7 +319,7 @@ Host programs (not Arduino sketches) must build on **Ubuntu x86** and **Windows 
 | **DEBUG** | Firmware and a **host DEBUG CLI** (fake ADC, `t`/`c` commands, print limit/motion). `-DDEBUG`, extra serial/printf, no optimization. Separate from Unity. First Mega bring-up holds every KS0258 channel at **90 deg (1500 us)** on a 0–180 SG90 map (1000/1500/2000 us). **Do not flash that onto a servo whose horn is already at a mechanical stop** (see below). |
 | **Unit Test** | **Unity** (ThrowTheSwitch), git submodule. Same tests on **host** and **on-target** (Mega first). |
 | **Cyclomatic complexity** | **lizard**, report **per module** (`lib/rr_servo`, each sketch, `tests`, `host`). Arduino `.ino` included. **Fail if any function in our code exceeds 10** (McCabe is per-function; module table is NLOC / function count / avg / max CCN). No fail on `third_party/` or other submodules. `python -u scripts/run_lizard.py` (same lookup as check_tools, including pipx). **Confirmed on Dell XPS17 Windows 11.** Install with `pipx install lizard` or `python -m pip install lizard`. Never `pip install --user` (fails inside a venv). |
-| **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. This target **fails on error-severity only**; warnings are reports. |
+| **Coding standard** | **Google C++ Style + selected CERT** via **Clang-Tidy** (`scripts/run_clang_tidy.sh`, host fail gate like lizard) and **Cppcheck**. **OCLint on Linux only** — not on Windows 10 or 11. Tidy does **not** scan `third_party/` or Mega/ESP32 `.ino` (Arduino cores; Mega VFS `off_t`/`long`). |
 
 Host CMake (C11/C++11, Clang on Ubuntu and Windows 11): `python scripts/build_host.py` or `scripts/build_host.sh`. Unity tests: `scripts/run_tests.sh`. DEBUG CLI: `build/host/rr_servo_debug_cli`. Coverage is Clang source-based (`-fprofile-instr-generate -fcoverage-mapping`) plus **llvm-cov** — not gcovr, Ceedling, or MinGW. Usual command: `python scripts/run_coverage.py`. Same tree: `cmake --build build/host-coverage --target coverage`. Report is `lib/rr_servo` only; HTML is `build/host-coverage/coverage/index.html`. Mega bring-up drives **16** KS0258 channels (`n`/`p` select, `t`/`c` throw/close). Channels 14–15 have no analog pin (A4/A5 reserved for I2C). This branch’s ESP32 bring-up is `sketches/TurnoutBringup` with DEBUG on and `RR_USE_KS0258=0`.
 

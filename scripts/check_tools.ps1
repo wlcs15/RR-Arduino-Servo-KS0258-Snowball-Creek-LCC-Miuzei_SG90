@@ -336,7 +336,7 @@ $tidy = Find-Cmd @("clang-tidy") @($LlvmBin)
 if ($tidy) {
     Write-Ok "clang-tidy" ((& $tidy --version 2>$null | Select-Object -First 1).ToString())
 } else {
-    Write-Warn "clang-tidy" "LLVM clang-tidy; scripts/run_clang_tidy.sh"
+    Write-Fail "clang-tidy" "LLVM clang-tidy; python -u scripts\run_clang_tidy.py (or .ps1)"
 }
 
 Write-Host "  SKIP     oclint             Linux only (not Windows 10/11)"

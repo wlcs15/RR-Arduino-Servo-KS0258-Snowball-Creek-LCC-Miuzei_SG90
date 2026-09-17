@@ -91,6 +91,12 @@ else
   fail clang "LLVM Clang C11/C++11 (apt install clang). Not MinGW gcc."
 fi
 
+if have_cmd clang-tidy; then
+  ok clang-tidy "$(clang-tidy --version 2>/dev/null | head -n1)"
+else
+  fail clang-tidy "apt install clang-tidy  (scripts/run_clang_tidy.sh — host fail gate)"
+fi
+
 if have_cmd ninja; then
   ok ninja "$(ninja --version 2>/dev/null)"
 elif have_cmd make; then
@@ -171,12 +177,6 @@ if have_cmd cppcheck; then
   ok cppcheck "$(cppcheck --version 2>/dev/null | head -n1)"
 else
   warn cppcheck "apt install cppcheck  (scripts/run_cppcheck.sh)"
-fi
-
-if have_cmd clang-tidy; then
-  ok clang-tidy "$(clang-tidy --version 2>/dev/null | head -n1)"
-else
-  warn clang-tidy "apt install clang-tidy  (scripts/run_clang_tidy.sh)"
 fi
 
 if have_cmd oclint; then

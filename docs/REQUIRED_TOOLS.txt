@@ -97,7 +97,9 @@ Optional (quality / coverage / serial / wrap)
                                pipx/module lookup. Confirmed on Dell XPS17
                                Windows 11.
   cppcheck                     scripts/run_cppcheck.sh
-  clang-tidy                   scripts/run_clang_tidy.sh
+  clang-tidy                   REQUIRED host gate: python -u scripts/run_clang_tidy.py
+                               launchers: run_clang_tidy.sh / run_clang_tidy.ps1
+                               (not third_party/, not Mega .ino)
   oclint                       Linux only; skipped on Windows
   Python cryptography          host Wi-Fi wrap (AES-256-GCM)
   Python pyserial              scripts/collect_hw_ids.py --port

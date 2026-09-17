@@ -4,6 +4,7 @@
 #include "TurnoutChannel.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #ifdef DEBUG
@@ -14,7 +15,7 @@
 
 static char cmd_key(char ch) {
   if (ch >= 'A' && ch <= 'Z') {
-    return (char)(ch - 'A' + 'a');
+    return static_cast<char>(ch - 'A' + 'a');
   }
   return ch;
 }
@@ -25,9 +26,10 @@ static bool apply_command(const char *line, int *raw, TurnoutChannel *ch) {
     return false;
   }
   if (key == 'a') {
-    int v = 0;
-    if (std::sscanf(line + 1, "%d", &v) == 1) {
-      *raw = v;
+    char *end = NULL;
+    const int parsed = static_cast<int>(std::strtol(line + 1, &end, 10));
+    if (end != line + 1) {
+      *raw = parsed;
     }
   } else if (key == 't') {
     ch->command(TURNOUT_CMD_THROWN, 0);
@@ -40,7 +42,8 @@ static bool apply_command(const char *line, int *raw, TurnoutChannel *ch) {
 static void print_state(int raw, int avg, const TurnoutChannel &ch) {
   std::printf("adc=%d avg=%d limit=%s motion=%s us=%u drive=%d\n", raw, avg,
               limit_state_name(ch.last_limit()), ch.motion_name(),
-              (unsigned)ch.pulse_us(), ch.drive_enabled() ? 1 : 0);
+              static_cast<unsigned>(ch.pulse_us()),
+              ch.drive_enabled() ? 1 : 0);
 }
 
 int main(void) {
@@ -54,7 +57,7 @@ int main(void) {
   RR_LOG("debug-cli RR_USE_KS0258 host simulator\n");
   std::printf("commands: a <adc> | t | c | s | q\n");
 
-  while (std::fgets(line, (int)sizeof(line), stdin) != NULL) {
+  while (std::fgets(line, static_cast<int>(sizeof(line)), stdin) != NULL) {
     if (!apply_command(line, &raw, &ch)) {
       break;
     }

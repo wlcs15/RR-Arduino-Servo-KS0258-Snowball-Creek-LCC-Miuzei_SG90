@@ -1,7 +1,6 @@
 #ifndef RR_SERVO_WIFI_HUB_PICK_H
 #define RR_SERVO_WIFI_HUB_PICK_H
 
-#include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -16,13 +15,13 @@
 
 inline uint32_t wifi_hub_ipv4_octets(unsigned a, unsigned b, unsigned c,
                                      unsigned d) {
-  return ((uint32_t)a << 24) | ((uint32_t)b << 16) | ((uint32_t)c << 8) |
-         (uint32_t)d;
+  return (static_cast<uint32_t>(a) << 24) | (static_cast<uint32_t>(b) << 16) |
+         (static_cast<uint32_t>(c) << 8) | static_cast<uint32_t>(d);
 }
 
 inline int wifi_hub_ipv4_usable(uint32_t ip) {
-  const unsigned a = (unsigned)((ip >> 24) & 0xFFu);
-  const unsigned b = (unsigned)((ip >> 16) & 0xFFu);
+  const uint32_t a = (ip >> 24) & 0xFFu;
+  const uint32_t b = (ip >> 16) & 0xFFu;
   if (ip == 0u) {
     return 0;
   }
@@ -38,21 +37,51 @@ inline int wifi_hub_ipv4_usable(uint32_t ip) {
   return 1;
 }
 
+inline int wifi_hub_parse_octet(const char **pp, unsigned *out) {
+  const char *s = *pp;
+  unsigned v = 0;
+  int digits = 0;
+  if (s == NULL || *s < '0' || *s > '9') {
+    return 0;
+  }
+  while (*s >= '0' && *s <= '9') {
+    v = v * 10u + static_cast<unsigned>(*s - '0');
+    if (v > 255u) {
+      return 0;
+    }
+    ++s;
+    ++digits;
+    if (digits > 3) {
+      return 0;
+    }
+  }
+  *out = v;
+  *pp = s;
+  return 1;
+}
+
 inline int wifi_hub_ipv4_parse(const char *s, uint32_t *out) {
-  unsigned a = 0;
-  unsigned b = 0;
-  unsigned c = 0;
-  unsigned d = 0;
+  unsigned oct[4];
+  const char *p = s;
+  int i;
   if (s == NULL || s[0] == '\0' || out == NULL) {
     return 0;
   }
-  if (sscanf(s, "%u.%u.%u.%u", &a, &b, &c, &d) != 4) {
+  for (i = 0; i < 4; i++) {
+    if (!wifi_hub_parse_octet(&p, &oct[i])) {
+      return 0;
+    }
+    if (i < 3) {
+      if (*p != '.') {
+        return 0;
+      }
+      ++p;
+    }
+  }
+  if (*p != '\0') {
     return 0;
   }
-  if (a > 255u || b > 255u || c > 255u || d > 255u) {
-    return 0;
-  }
-  *out = wifi_hub_ipv4_octets(a, b, c, d);
+  *out = wifi_hub_ipv4_octets(oct[0], oct[1], oct[2], oct[3]);
   return wifi_hub_ipv4_usable(*out);
 }
 

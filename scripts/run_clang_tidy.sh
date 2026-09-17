@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
+# Launcher for scripts/run_clang_tidy.py (Ubuntu / Git Bash).
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-if ! command -v clang-tidy >/dev/null 2>&1; then
-  echo "clang-tidy not installed"
+if command -v python3 >/dev/null 2>&1; then
+  py=python3
+elif command -v python >/dev/null 2>&1; then
+  py=python
+else
+  echo "python3 not found"
   exit 1
 fi
-"$root/scripts/build_host.sh"
-db="$root/build/host/compile_commands.json"
-if [[ ! -f "$db" ]]; then
-  echo "missing compile_commands.json"
-  exit 1
-fi
-clang-tidy -p "$root/build/host" \
-  "$root/tests/test_rr_servo.cpp" "$root/host/debug_cli.cpp"
+exec "$py" -u "$root/scripts/run_clang_tidy.py" "$@"

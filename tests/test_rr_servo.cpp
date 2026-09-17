@@ -74,7 +74,7 @@ static void test_limit_state_names(void) {
   TEST_ASSERT_EQUAL_STRING("thrown", limit_state_name(LIMIT_THROWN));
   TEST_ASSERT_EQUAL_STRING("closed", limit_state_name(LIMIT_CLOSED));
   TEST_ASSERT_EQUAL_STRING("both", limit_state_name(LIMIT_BOTH));
-  TEST_ASSERT_EQUAL_STRING("?", limit_state_name((LimitState)99));
+  TEST_ASSERT_EQUAL_STRING("?", limit_state_name(99));
 }
 
 static void test_filter_window_and_reset(void) {
@@ -207,7 +207,20 @@ static void test_wifi_hub_parse_rejects_garbage(void) {
   TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.999.1.1", &ip));
   TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.1.999.1", &ip));
   TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.1.1.999", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("256.1.1.1", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.2.3", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.2.3.4.5", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("192..1.1", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("192.168.1.57x", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("192.168.1.57.", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("192.168.1.0057", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse(".1.1.1", &ip));
+  TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("1.2.3.4 ", &ip));
   TEST_ASSERT_EQUAL(0, wifi_hub_ipv4_parse("127.0.0.1", &ip));
+  TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_parse("01.02.03.04", &ip));
+  TEST_ASSERT_EQUAL(wifi_hub_ipv4_octets(1, 2, 3, 4), ip);
+  TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_parse("10.0.0.1", &ip));
+  TEST_ASSERT_EQUAL(wifi_hub_ipv4_octets(10, 0, 0, 1), ip);
   TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_parse("192.168.1.57", &ip));
   TEST_ASSERT_EQUAL(wifi_hub_ipv4_octets(192, 168, 1, 57), ip);
   TEST_ASSERT_EQUAL(1, wifi_hub_ipv4_usable(wifi_hub_ipv4_octets(169, 253, 0, 1)));
@@ -322,12 +335,14 @@ static void test_cdi_configure_ready_like_lcc_pro(void) {
   unsigned off = 0;
   unsigned n;
   unsigned got = 0;
-  TEST_ASSERT_EQUAL(1, rr_cdi_configure_ready(k_cdi_ok, (unsigned)strlen(k_cdi_ok)));
+  TEST_ASSERT_EQUAL(1, rr_cdi_configure_ready(
+      k_cdi_ok, static_cast<unsigned>(strlen(k_cdi_ok))));
   TEST_ASSERT_EQUAL(0, rr_cdi_configure_ready(0, 10));
   TEST_ASSERT_EQUAL(0, rr_cdi_configure_ready("<cdi>", 5));
   TEST_ASSERT_EQUAL(0, rr_cdi_configure_ready(
       "<?xml version=\"1.0\"?><cdi><identification>", 42));
-  while ((n = rr_cdi_jmri_read(k_cdi_ok, (unsigned)strlen(k_cdi_ok), off,
+  while ((n = rr_cdi_jmri_read(k_cdi_ok, static_cast<unsigned>(strlen(k_cdi_ok)),
+                               off,
                                assembled + got, 64)) > 0) {
     off += n;
     got += n;

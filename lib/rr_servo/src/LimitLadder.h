@@ -31,9 +31,12 @@ inline LimitLadderConfig limit_ladder_default_10bit() {
 inline LimitLadderConfig limit_ladder_scaled(int fullScale) {
   LimitLadderConfig d = limit_ladder_default_10bit();
   LimitLadderConfig c;
-  c.neitherMin = (int)((long)d.neitherMin * fullScale / 1023);
-  c.thrownMin = (int)((long)d.thrownMin * fullScale / 1023);
-  c.closedMin = (int)((long)d.closedMin * fullScale / 1023);
+  c.neitherMin = static_cast<int>(static_cast<int32_t>(d.neitherMin) *
+                                  fullScale / 1023);
+  c.thrownMin = static_cast<int>(static_cast<int32_t>(d.thrownMin) *
+                                 fullScale / 1023);
+  c.closedMin = static_cast<int>(static_cast<int32_t>(d.closedMin) *
+                                 fullScale / 1023);
   return c;
 }
 
@@ -50,7 +53,7 @@ inline LimitState limit_ladder_decode(int raw, const LimitLadderConfig &cfg) {
   return LIMIT_BOTH;
 }
 
-inline const char *limit_state_name(LimitState s) {
+inline const char *limit_state_name(int s) {
   switch (s) {
     case LIMIT_NEITHER:
       return "neither";
@@ -89,7 +92,7 @@ class LimitLadderFilter {
     }
     samples_[index_] = raw;
     sum_ += raw;
-    index_ = (uint8_t)((index_ + 1) % window_);
+    index_ = static_cast<uint8_t>((index_ + 1) % window_);
     return sum_ / count_;
   }
 
@@ -104,7 +107,7 @@ class LimitLadderFilter {
   uint8_t index_;
   uint8_t count_;
   int samples_[16];
-  long sum_;
+  int32_t sum_;
 };
 
 #endif

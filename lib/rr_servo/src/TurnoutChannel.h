@@ -37,8 +37,8 @@ struct TurnoutConfig {
 
 inline TurnoutConfig turnout_default_sg90() {
   TurnoutConfig c;
-  c.thrownPulseUs = (uint16_t)RR_SG90_US_180;
-  c.closedPulseUs = (uint16_t)RR_SG90_US_0;
+  c.thrownPulseUs = static_cast<uint16_t>(RR_SG90_US_180);
+  c.closedPulseUs = static_cast<uint16_t>(RR_SG90_US_0);
   c.moveTimeoutMs = 4000;
   c.holdAfterLimitMs = 200;
   c.releasePwmWhenIdle = true;
@@ -57,7 +57,7 @@ class TurnoutChannel {
         arrivedMs_(0),
         arrived_(false),
         drive_(false),
-        pulseUs_((uint16_t)RR_SG90_US_90) {}
+        pulseUs_(static_cast<uint16_t>(RR_SG90_US_90)) {}
 
   void set_config(const TurnoutConfig &cfg) { cfg_ = cfg; }
   const TurnoutConfig &config() const { return cfg_; }
