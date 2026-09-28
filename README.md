@@ -104,6 +104,20 @@ The **RR-CirKits LCC Buffer** is STM32 CDC **VID `0483` PID `5740`**. That is th
 
 Flash Mega with `python -u scripts/build_lcc_mega.py` (does **not** upload). Flash `.A5.03` with `python -u scripts/build_lcc_wifi.py --flash --port /dev/ttyUSB1` after confirming that port’s MAC is `14:33:5c:2e:b4:d8`. SNIP softwareVersion is the git tag (`v3.03` clean, `v3.03+` dirty). **Do not tag or push** until asked.
 
+## Node ids
+
+This repo is **A5.02** when `RR_USE_KS0258` is off, and **A5.03** on `wemos-d1r32`. Those ids are already in `BoardPins.h`. The Wemos CAN-shield test branches are not A5.03.
+
+| Node | Hardware | Where the full firmware lives | Tag |
+| --- | --- | --- | --- |
+| A5.01 | Wemos D1 R32, Wi-Fi | Wemos display repo, `fix-bugs-cls-Wemos-ESP32-and-Waveshare_4inch_touch_display` | `v1.0.4` |
+| A5.02 | Mega, wired CAN | this repo, Mega build | existing Mega tag |
+| A5.03 | Wemos D1 R32, servo Wi-Fi | this repo, `wemos-d1r32` | not the CAN-shield test branches |
+| A5.04 | ESP32-S3 4.3 inch panel | `LCCControlPanelTouchscreen`, `cls_waveshare_ESP32-S3_4.3Inch_WiFi` | `v1.0.5` in that repo |
+| A5.05 | Pico 2 W, Wi-Fi | Pico repo, `main` | `v0.05` |
+| A5.06 | Pico W + 3.5 inch panel | Pico repo, `pico-w-restouch-3.5` | none yet |
+| A5.07 | RP2350-CAN | Pico repo, `RP2350-Transmit-Test` | `v1.05` is the CAN bring-up, not a retag of the node |
+
 CH340 boards have **no unique USB serial**; distinguish them by USB path (`1-1.2` vs `1-1.3`) or by the boot banner (`LccWifiTurnoutNode` vs `d1r32_ili9486_openmrn_wifi`).
 
 **Keep the RR-CirKits gateway from moving (no extra sudo):** Linux already creates a stable symlink. Use this in JMRI if the port list allows a path (it does not stay `ttyACM0` when other CDC devices plug in first):
