@@ -95,6 +95,12 @@ Emulator (CI smoke; optional for local build)
                                Windows check_tools.ps1 reports SKIP (not expected).
                                Timeout exit 124 is a clean smoke PASS in CI.
 
+  On-target Unity (same suite as host run_tests.sh, Mega ELF, no flash):
+    ./scripts/run_on_target_tests.sh
+    python3 scripts/run_on_target_tests.py
+  Windows scripts\run_on_target_tests.ps1 prints SKIP and exits 0
+  (simavr is Linux CI only; it does not flash hardware).
+
 
 Optional (quality / coverage / serial / wrap)
 ---------------------------------------------
