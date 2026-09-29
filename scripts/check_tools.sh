@@ -158,6 +158,19 @@ if [[ "$cli_from_py" -eq 0 ]]; then
 fi
 
 echo ""
+echo "=== Emulator (simavr ATmega2560 CI smoke) ==="
+
+# Presence only. Does not run firmware. Linux CI (GrokBot-CI-AVR) uses:
+#   simavr -m atmega2560 -f 16000000 <elf>
+# Exit 124 from timeout is treated as a clean smoke PASS by the orchestrator.
+if have_cmd simavr; then
+  # simavr --version is not universal; --help / path is enough for presence.
+  ok simavr "$(command -v simavr)  (ATmega2560 @ 16 MHz CI smoke)"
+else
+  warn simavr "apt install simavr  (or PATH wrapper). CI emulator smoke only; not required to build/flash."
+fi
+
+echo ""
 echo "=== Optional quality / coverage / wrap ==="
 
 if have_cmd llvm-cov && have_cmd llvm-profdata; then

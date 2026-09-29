@@ -293,6 +293,17 @@ if (-not $foundViaPy) {
 }
 
 Write-Host ""
+Write-Host "=== Emulator (simavr ATmega2560 CI smoke) ==="
+
+# simavr is the Linux CI emulator for Mega firmware smoke. Not expected on Win11.
+$simavr = Find-Cmd @("simavr") @()
+if ($simavr) {
+    Write-Ok "simavr" "$simavr  (ATmega2560 @ 16 MHz CI smoke)"
+} else {
+    Write-Host "  SKIP     simavr             Linux CI only (GrokBot-CI-AVR); not expected on Windows 10/11"
+}
+
+Write-Host ""
 Write-Host "=== Optional quality / coverage / wrap ==="
 
 $llvmCov = Find-Cmd @("llvm-cov") @($LlvmBin)

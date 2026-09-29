@@ -28,7 +28,8 @@ That folder is gitignored. Attach or paste the file.
 Exit 0 if every required tool is present. Exit 1 if any required tool is
 missing; the missing names are printed with what they are used for.
 Optional quality tools (lizard, cppcheck, clang-tidy, llvm-cov, OCLint)
-are reported as WARN and do not fail the check.
+and the Linux simavr emulator are reported as WARN / SKIP and do not
+fail the check.
 
 Not used: MinGW, gcovr, Ceedling. Host C and C++ are C11 / C++11 with
 LLVM Clang. Sketches stay Arduino.
@@ -85,6 +86,16 @@ Arduino Library Manager (once per PC; not in git):
   arduino-cli core install esp32:esp32
 
 
+Emulator (CI smoke; optional for local build)
+---------------------------------------------
+  simavr                       Linux only. GrokBot-CI-AVR smoke-runs Mega
+                               ELF/HEX: simavr -m atmega2560 -f 16000000 <file>
+                               Presence check only; scripts never flash hardware.
+                               Ubuntu: apt install simavr  (Debian package 1.6+).
+                               Windows check_tools.ps1 reports SKIP (not expected).
+                               Timeout exit 124 is a clean smoke PASS in CI.
+
+
 Optional (quality / coverage / serial / wrap)
 ---------------------------------------------
   llvm-profdata + llvm-cov     python scripts/run_coverage.py
@@ -108,7 +119,7 @@ Optional (quality / coverage / serial / wrap)
 Typical install (Ubuntu)
 ------------------------
   sudo apt install git python3 cmake clang llvm clang-tidy cppcheck \
-    ninja-build python3-cryptography python3-serial python3-pip
+    ninja-build python3-cryptography python3-serial python3-pip simavr
   pipx install lizard
   # arduino-cli: https://arduino.github.io/arduino-cli/latest/installation/
 
