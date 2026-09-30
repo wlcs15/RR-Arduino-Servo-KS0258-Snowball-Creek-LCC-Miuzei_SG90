@@ -67,6 +67,12 @@ def main():
     parser.add_argument("--coverage", action="store_true")
     parser.add_argument("--upload", action="store_true")
     parser.add_argument("--port", default="COM5")
+    parser.add_argument(
+        "--output-dir",
+        default="",
+        help="Write ELF/HEX here (arduino-cli --output-dir). "
+        "Does not upload or flash.",
+    )
     args = parser.parse_args()
 
     extra = extra_flags(args.coverage)
@@ -106,6 +112,11 @@ def main():
                 "compiler.c.elf.extra_flags=--coverage -Wl,-u,__gcov_exit -Wl,-u,__gcov_init",
             ]
         )
+    if args.output_dir:
+        out_dir = os.path.abspath(args.output_dir)
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+        cmd.extend(["--output-dir", out_dir])
     if args.upload:
         cmd.extend(["--upload", "-p", args.port])
     cmd.append(SKETCH)
