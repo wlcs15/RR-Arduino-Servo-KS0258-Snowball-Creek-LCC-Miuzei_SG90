@@ -439,7 +439,7 @@ def inspect():
 
 
 def cli_status_lines(info):
-    """OK/MISSING/WARN lines for check_tools.ps1 / check_tools.sh."""
+    """FOUND/MISSING/DEFERRED lines for check_tools.ps1 / check_tools.sh."""
     lines = []
     copies = info.get("cli_copies") or []
     latest = info.get("cli_latest")
@@ -463,32 +463,32 @@ def cli_status_lines(info):
         )
     elif latest and _ver_tuple(ver) == _ver_tuple(latest):
         lines.append(
-            "  OK       arduino-cli        %s  %s  (matches latest stable)"
+            "  FOUND    arduino-cli        %s  %s  (matches latest stable)"
             % (ver, path)
         )
     elif latest and _ver_tuple(ver) < _ver_tuple(latest):
-        lines.append("  OK       arduino-cli        %s  %s  (1.0+ required)" % (ver, path))
+        lines.append("  FOUND    arduino-cli        %s  %s  (1.0+ required)" % (ver, path))
         lines.append(
-            "  WARN     arduino-cli-latest installed %s; latest stable is %s. %s"
+            "  DEFERRED arduino-cli-latest upgrade not required: installed %s; latest stable is %s. %s"
             % (ver, latest, hint)
         )
     elif latest and _ver_tuple(ver) > _ver_tuple(latest):
         lines.append(
-            "  OK       arduino-cli        %s  %s  (newer than latest stable %s)"
+            "  FOUND    arduino-cli        %s  %s  (newer than latest stable %s)"
             % (ver, path, latest)
         )
     else:
         lines.append(
-            "  OK       arduino-cli        %s  %s  (1.0+ required; latest not queried)"
+            "  FOUND    arduino-cli        %s  %s  (1.0+ required; latest not queried)"
             % (ver, path)
         )
         lines.append(
-            "  WARN     arduino-cli-latest could not query GitHub for latest stable"
+            "  DEFERRED arduino-cli-latest could not query GitHub for latest stable (offline)"
         )
 
     if not _which("arduino-cli") and not _which("arduino-cli.exe"):
         lines.append(
-            "  WARN     arduino-cli-path   not on PATH; clones still find %s. "
+            "  DEFERRED arduino-cli-path   not on PATH; clones still find %s. "
             "Add that folder to PATH for a plain arduino-cli command."
             % path
         )
@@ -496,7 +496,7 @@ def cli_status_lines(info):
     for copy in copies[1:]:
         if copy["tuple"] < best["tuple"]:
             lines.append(
-                "  WARN     arduino-cli-old    %s  %s  (older copy; using %s)"
+                "  DEFERRED arduino-cli-old    %s  %s  (older copy ignored; using %s)"
                 % (copy["version"], copy["path"], ver)
             )
     return lines
@@ -550,7 +550,7 @@ def main():
     for fqbn, _pair in REQUIRED_CORES:
         path = info["cores"].get(fqbn)
         if path:
-            print("  OK       %s  %s" % (fqbn, path))
+            print("  FOUND    %s  %s" % (fqbn, path))
         else:
             print("  MISSING  %s  not under Arduino15/packages (no uninstall)" % fqbn)
             missing = 1
@@ -558,7 +558,7 @@ def main():
     for name in REQUIRED_LIBS:
         path = info["libs"].get(name)
         if path:
-            print("  OK       lib %-14s %s" % (name, path))
+            print("  FOUND    lib %-14s %s" % (name, path))
         else:
             roots = info.get("lib_roots") or []
             where = "; ".join(roots) if roots else "(no Arduino/libraries folders yet)"
