@@ -47,16 +47,23 @@ if (-not $env:CHECK_TOOLS_INNER) {
 $script:MissingReq = 0
 $script:MissingOpt = 0
 
+# Status words (Chuck's rule): FOUND, MISSING, DEFERRED only.
+#   FOUND     tool present
+#   MISSING   tool absent (required -> exit 1; optional -> "(optional)", exit 0)
+#   DEFERRED  deliberately not checked / not applicable; always carries a reason
 function Write-Ok([string]$Name, [string]$Detail) {
-    Write-Host ("  OK       {0,-18} {1}" -f $Name, $Detail)
+    Write-Host ("  FOUND    {0,-18} {1}" -f $Name, $Detail)
 }
 function Write-Fail([string]$Name, [string]$Detail) {
     Write-Host ("  MISSING  {0,-18} {1}" -f $Name, $Detail)
     $script:MissingReq = 1
 }
 function Write-Warn([string]$Name, [string]$Detail) {
-    Write-Host ("  WARN     {0,-18} {1}" -f $Name, $Detail)
+    Write-Host ("  MISSING  {0,-18} (optional) {1}" -f $Name, $Detail)
     $script:MissingOpt = 1
+}
+function Write-Deferred([string]$Name, [string]$Reason) {
+    Write-Host ("  DEFERRED {0,-18} {1}" -f $Name, $Reason)
 }
 
 function Find-Cmd([string[]]$Names, [string[]]$ExtraDirs) {
@@ -216,20 +223,20 @@ if ($py -and (Test-Path -LiteralPath $finder)) {
     if ($LASTEXITCODE -eq 0 -or $scan) {
         $foundViaPy = $true
         foreach ($line in @($scan)) {
-            if ($line -match '^\s*OK\s+lib\s+(\S+)\s+(.*)$') {
+            if ($line -match '^\s*(?:OK|FOUND)\s+lib\s+(\S+)\s+(.*)$') {
                 Write-Ok ("lib " + $Matches[1]) $Matches[2].Trim()
             } elseif ($line -match '^\s*MISSING\s+lib\s+(\S+)\s+(.*)$') {
                 Write-Fail ("lib " + $Matches[1]) $Matches[2].Trim()
-            } elseif ($line -match '^\s*WARN\s+lib\s+(\S+)\s+(.*)$') {
-                Write-Warn ("lib " + $Matches[1]) $Matches[2].Trim()
-            } elseif ($line -match '^\s*OK\s+(\S+)\s+(.*)$') {
+            } elseif ($line -match '^\s*(?:WARN|DEFERRED)\s+lib\s+(\S+)\s+(.*)$') {
+                Write-Deferred ("lib " + $Matches[1]) $Matches[2].Trim()
+            } elseif ($line -match '^\s*(?:OK|FOUND)\s+(\S+)\s+(.*)$') {
                 Write-Ok $Matches[1] $Matches[2].Trim()
                 if ($Matches[1] -eq "arduino-cli") { $cliFromPy = $true }
             } elseif ($line -match '^\s*MISSING\s+(\S+)\s+(.*)$') {
                 Write-Fail $Matches[1] $Matches[2].Trim()
                 if ($Matches[1] -eq "arduino-cli") { $cliFromPy = $true }
-            } elseif ($line -match '^\s*WARN\s+(\S+)\s+(.*)$') {
-                Write-Warn $Matches[1] $Matches[2].Trim()
+            } elseif ($line -match '^\s*(?:WARN|DEFERRED)\s+(\S+)\s+(.*)$') {
+                Write-Deferred $Matches[1] $Matches[2].Trim()
             }
         }
     }
@@ -300,7 +307,7 @@ $simavr = Find-Cmd @("simavr") @()
 if ($simavr) {
     Write-Ok "simavr" "$simavr  (ATmega2560 @ 16 MHz CI smoke)"
 } else {
-    Write-Host "  SKIP     simavr             Linux CI only (GrokBot-CI-AVR); not expected on Windows 10/11"
+    Write-Deferred "simavr" "(Linux CI only; not used on Windows)"
 }
 
 Write-Host ""
@@ -317,8 +324,8 @@ if ($llvmCov -and $llvmProf) {
 
 if ($py) {
     $lizardCheck = & $py -u (Join-Path $Root "scripts\run_lizard.py") --check 2>&1 | Out-String
-    if ($LASTEXITCODE -eq 0 -and $lizardCheck -match "OK") {
-        Write-Ok "lizard" ($lizardCheck.Trim())
+    if ($LASTEXITCODE -eq 0 -and $lizardCheck -match "FOUND") {
+        Write-Ok "lizard" (($lizardCheck.Trim()) -replace '^FOUND\s+', '')
     } else {
         Write-Warn "lizard" "pipx install lizard  OR  python -m pip install lizard  (never pip --user; fails in a venv)"
     }
@@ -350,7 +357,7 @@ if ($tidy) {
     Write-Fail "clang-tidy" "LLVM clang-tidy; python -u scripts\run_clang_tidy.py (or .ps1)"
 }
 
-Write-Host "  SKIP     oclint             Linux only (not Windows 10/11)"
+Write-Deferred "oclint" "(Linux only; not used on Windows 10/11)"
 
 Write-Host ""
 if ($script:MissingReq -ne 0) {
@@ -358,7 +365,7 @@ if ($script:MissingReq -ne 0) {
     exit 1
 }
 if ($script:MissingOpt -ne 0) {
-    Write-Host "Host/firmware tools OK. Optional items listed as WARN above."
+    Write-Host "Required host/firmware tools FOUND. Optional items listed as MISSING (optional) above."
     Write-Host "Details: docs\REQUIRED_TOOLS.txt"
     exit 0
 }
