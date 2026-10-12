@@ -43,14 +43,21 @@ fi
 missing_req=0
 missing_opt=0
 
-ok() { printf "  OK       %-18s %s\n" "$1" "$2"; }
+# Status words (Chuck's rule): FOUND, MISSING, DEFERRED only.
+#   FOUND     tool present
+#   MISSING   tool absent (required -> exit 1; optional -> "(optional)", exit 0)
+#   DEFERRED  deliberately not checked / advisory only; always carries a reason
+ok() { printf "  FOUND    %-18s %s\n" "$1" "$2"; }
 fail() {
   printf "  MISSING  %-18s %s\n" "$1" "$2"
   missing_req=1
 }
 warn() {
-  printf "  WARN     %-18s %s\n" "$1" "$2"
+  printf "  MISSING  %-18s (optional) %s\n" "$1" "$2"
   missing_opt=1
+}
+defer() {
+  printf "  DEFERRED %-18s %s\n" "$1" "$2"
 }
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -120,20 +127,20 @@ cli_from_py=0
 # find_arduino.py also picks the newest arduino-cli (1.0+ required; latest stable).
 if [[ -n "$py" && -f "$root/scripts/find_arduino.py" ]]; then
   while IFS= read -r line; do
-    if [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      ok "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-    elif [[ "$line" =~ ^[[:space:]]*MISSING[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      fail "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-    elif [[ "$line" =~ ^[[:space:]]*WARN[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      warn "lib ${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-    elif [[ "$line" =~ ^[[:space:]]*OK[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      ok "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-      if [[ "${BASH_REMATCH[1]}" == "arduino-cli" ]]; then cli_from_py=1; fi
-    elif [[ "$line" =~ ^[[:space:]]*MISSING[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      fail "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
-      if [[ "${BASH_REMATCH[1]}" == "arduino-cli" ]]; then cli_from_py=1; fi
-    elif [[ "$line" =~ ^[[:space:]]*WARN[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
-      warn "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    if [[ "$line" =~ ^[[:space:]]*(OK|FOUND)[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      ok "lib ${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    elif [[ "$line" =~ ^[[:space:]]*(MISSING)[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      fail "lib ${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    elif [[ "$line" =~ ^[[:space:]]*(WARN|DEFERRED)[[:space:]]+lib[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      defer "lib ${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    elif [[ "$line" =~ ^[[:space:]]*(OK|FOUND)[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      ok "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+      if [[ "${BASH_REMATCH[2]}" == "arduino-cli" ]]; then cli_from_py=1; fi
+    elif [[ "$line" =~ ^[[:space:]]*(MISSING)[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      fail "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+      if [[ "${BASH_REMATCH[2]}" == "arduino-cli" ]]; then cli_from_py=1; fi
+    elif [[ "$line" =~ ^[[:space:]]*(WARN|DEFERRED)[[:space:]]+([^[:space:]]+)[[:space:]]+(.*)$ ]]; then
+      defer "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
     fi
   done < <("$py" -u "$root/scripts/find_arduino.py")
 else
@@ -181,7 +188,7 @@ else
 fi
 
 if [[ -n "$py" ]] && "$py" -u "$root/scripts/run_lizard.py" --check >/dev/null 2>&1; then
-  ok lizard "$("$py" -u "$root/scripts/run_lizard.py" --check 2>/dev/null | head -n1)"
+  ok lizard "$("$py" -u "$root/scripts/run_lizard.py" --check 2>/dev/null | head -n1 | sed "s/^FOUND //")"
 else
   warn lizard "pipx install lizard  OR  python -m pip install lizard  (never pip --user; fails in a venv)"
 fi
@@ -195,7 +202,7 @@ fi
 if have_cmd oclint; then
   ok oclint "$(oclint --version 2>/dev/null | head -n1)"
 else
-  warn oclint "Linux only; skip if not installed (scripts/run_oclint.sh)"
+  warn oclint "Linux only; optional if not installed (scripts/run_oclint.sh)"
 fi
 
 if [[ -n "$py" ]] && "$py" -c "import cryptography" >/dev/null 2>&1; then
@@ -216,7 +223,7 @@ if [[ "$missing_req" -ne 0 ]]; then
   exit 1
 fi
 if [[ "$missing_opt" -ne 0 ]]; then
-  echo "Host/firmware tools OK. Optional items listed as WARN above."
+  echo "Required host/firmware tools FOUND. Optional items listed as MISSING (optional) above."
   echo "Details: docs/REQUIRED_TOOLS.txt"
   exit 0
 fi

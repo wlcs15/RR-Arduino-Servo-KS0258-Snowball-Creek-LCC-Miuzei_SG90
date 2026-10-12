@@ -16,7 +16,7 @@ These do not install or uninstall anything. On Windows 11, Arduino IDE
 libraries often live under OneDrive\Documents\Arduino\libraries while
 `arduino-cli lib list` is empty. find_arduino.py searches those folders
 (and Arduino15\packages for cores) so a working IDE install is reported
-as OK. Do not reinstall Library Manager packages to satisfy the checker.
+as FOUND. Do not reinstall Library Manager packages to satisfy the checker.
 
 Each run writes a text log you can send without the Grok CLI:
 
@@ -28,8 +28,16 @@ That folder is gitignored. Attach or paste the file.
 Exit 0 if every required tool is present. Exit 1 if any required tool is
 missing; the missing names are printed with what they are used for.
 Optional quality tools (lizard, cppcheck, clang-tidy, llvm-cov, OCLint)
-and the Linux simavr emulator are reported as WARN / SKIP and do not
-fail the check.
+and the Linux simavr emulator are reported as MISSING (optional) and do
+not fail the check.
+
+Status words: the checkers print only FOUND, MISSING, or DEFERRED.
+  FOUND     the tool is present.
+  MISSING   the tool is absent. Required -> exit 1. Optional tools are
+            tagged "(optional)" and do not fail the check.
+  DEFERRED  deliberately not checked or not applicable here, always
+            followed by the reason (e.g. simavr / OCLint on Windows,
+            arduino-cli newer-release advisory).
 
 Not used: MinGW, gcovr, Ceedling. Host C and C++ are C11 / C++11 with
 LLVM Clang. Sketches stay Arduino.
@@ -62,7 +70,7 @@ Required for firmware (this branch)
     Searched: PATH, %USERPROFILE%\ex-installer\arduino-cli\, Arduino IDE
     bundled CLI, scoop, ~/bin. The newest copy is the one confirmed.
     If that copy is 1.0+ but older than GitHub latest stable, the check
-    prints WARN arduino-cli-latest (does not fail). Offline: still OK if 1.0+.
+    prints DEFERRED arduino-cli-latest (does not fail). Offline: still FOUND if 1.0+.
     Latest packages: https://github.com/arduino/arduino-cli/releases/latest
   Arduino AVR core:     arduino:avr          (Mega 2560)
   Arduino-ESP32 core:   esp32:esp32          (D1 R32, FQBN esp32:esp32:d1_uno32)
@@ -92,7 +100,7 @@ Emulator (CI smoke; optional for local build)
                                ELF/HEX: simavr -m atmega2560 -f 16000000 <file>
                                Presence check only; scripts never flash hardware.
                                Ubuntu: apt install simavr  (Debian package 1.6+).
-                               Windows check_tools.ps1 reports SKIP (not expected).
+                               Windows check_tools.ps1 reports DEFERRED (Linux CI only).
                                Timeout exit 124 is a clean smoke PASS in CI.
 
   On-target Unity (same suite as host run_tests.sh, Mega ELF, no flash):

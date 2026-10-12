@@ -159,7 +159,7 @@ def main():
         if not mod:
             print("MISSING lizard")
             return 1
-        print("OK %s" % getattr(mod, "__file__", "lizard"))
+        print("FOUND %s" % getattr(mod, "__file__", "lizard"))
         return 0
     try:
         import session_log
