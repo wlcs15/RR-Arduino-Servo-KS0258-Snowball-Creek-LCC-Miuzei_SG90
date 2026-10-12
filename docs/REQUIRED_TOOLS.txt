@@ -27,9 +27,9 @@ That folder is gitignored. Attach or paste the file.
 
 Exit 0 if every required tool is present. Exit 1 if any required tool is
 missing; the missing names are printed with what they are used for.
-Optional quality tools (lizard, cppcheck, clang-tidy, llvm-cov, OCLint)
+Optional quality tools (lizard, cppcheck, llvm-cov, OCLint)
 and the Linux simavr emulator are reported as MISSING (optional) and do
-not fail the check.
+not fail the check. clang-tidy is required (host gate), not optional.
 
 Status words: the checkers print only FOUND, MISSING, or DEFERRED.
   FOUND     the tool is present.
@@ -53,6 +53,10 @@ Required for host Unity + DEBUG CLI
   Python 3 (python on Win11 PATH, python3 on Ubuntu)
   CMake 3.10+
   LLVM Clang (clang and clang++) — not MSVC cl, not MinGW gcc
+  clang-tidy (REQUIRED host gate; LLVM 19 verified)
+    python -u scripts/run_clang_tidy.py
+    launchers: scripts/run_clang_tidy.sh / scripts/run_clang_tidy.ps1
+    (not third_party/, not Mega .ino)
   A CMake generator:
     Windows: Ninja, or nmake from Visual Studio Build Tools
     Linux:   Ninja or Unix make
@@ -72,10 +76,21 @@ Required for firmware (this branch)
     If that copy is 1.0+ but older than GitHub latest stable, the check
     prints DEFERRED arduino-cli-latest (does not fail). Offline: still FOUND if 1.0+.
     Latest packages: https://github.com/arduino/arduino-cli/releases/latest
-  Arduino AVR core:     arduino:avr          (Mega 2560)
-  Arduino-ESP32 core:   esp32:esp32          (D1 R32, FQBN esp32:esp32:d1_uno32)
+  Arduino AVR core:     arduino:avr          (Mega 2560; 1.8.8 verified)
+  Arduino-ESP32 core:   esp32:esp32          (D1 R32, FQBN esp32:esp32:d1_uno32;
+                                             3.x line, 3.3.12 verified)
 
-Arduino Library Manager (once per PC; not in git):
+  esp32:esp32 needs the Espressif board index (not in the default Arduino
+  package list). Add it once per PC, then update and install:
+
+  arduino-cli config add board_manager.additional_urls \
+    https://espressif.github.io/arduino-esp32/package_esp32_index.json
+  arduino-cli core update-index
+  arduino-cli core install arduino:avr
+  arduino-cli core install esp32:esp32
+
+Arduino Library Manager (once per PC; not in git).
+Same six names as scripts/find_arduino.py REQUIRED_LIBS:
   Mega LCC:     LibLCC, ACAN2517, ACAN2515, M95_EEPROM
   ESP32 Wi-Fi:  OpenMRNLite, ESP32Servo
 
@@ -90,9 +105,6 @@ Arduino Library Manager (once per PC; not in git):
   (Arduino IDE bundled CLI is enough). find_arduino.py prints the
   libraries folders it searched (Documents, OneDrive, IDE sketchbook).
 
-  arduino-cli core install arduino:avr
-  arduino-cli core install esp32:esp32
-
 
 Emulator (CI smoke; optional for local build)
 ---------------------------------------------
@@ -106,8 +118,8 @@ Emulator (CI smoke; optional for local build)
   On-target Unity (same suite as host run_tests.sh, Mega ELF, no flash):
     ./scripts/run_on_target_tests.sh
     python3 scripts/run_on_target_tests.py
-  Windows scripts\run_on_target_tests.ps1 prints SKIP and exits 0
-  (simavr is Linux CI only; it does not flash hardware).
+  Windows scripts\run_on_target_tests.ps1 exits 0 without running
+  simavr (Linux CI only; it does not flash hardware).
 
 
 Optional (quality / coverage / serial / wrap)
@@ -122,10 +134,7 @@ Optional (quality / coverage / serial / wrap)
                                pipx/module lookup. Confirmed on Dell XPS17
                                Windows 11.
   cppcheck                     scripts/run_cppcheck.sh
-  clang-tidy                   REQUIRED host gate: python -u scripts/run_clang_tidy.py
-                               launchers: run_clang_tidy.sh / run_clang_tidy.ps1
-                               (not third_party/, not Mega .ino)
-  oclint                       Linux only; skipped on Windows
+  oclint                       Linux only; DEFERRED on Windows
   Python cryptography          host Wi-Fi wrap (AES-256-GCM)
   Python pyserial              scripts/collect_hw_ids.py --port
 
